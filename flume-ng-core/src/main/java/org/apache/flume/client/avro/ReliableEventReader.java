@@ -27,6 +27,7 @@ import java.io.IOException;
  * Clients must call commit() after each read operation, otherwise the
  * implementation must reset its internal buffers and return the same events
  * as it did previously.
+ * 可靠的方式读取事件
  */
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
@@ -36,6 +37,7 @@ public interface ReliableEventReader extends EventReader {
    * Indicate to the implementation that the previously-returned events have
    * been successfully processed and committed.
    * @throws IOException
+   * 可靠的,因此会有一个提交的过程
    */
   public void commit() throws IOException;
 

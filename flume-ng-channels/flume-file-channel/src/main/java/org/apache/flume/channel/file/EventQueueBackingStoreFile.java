@@ -389,7 +389,7 @@ abstract class EventQueueBackingStoreFile extends EventQueueBackingStore {
          */
         checkpointFile.write(new byte[(int) totalBytes]);
       } else {
-        byte[] initBuffer = new byte[MAX_ALLOC_BUFFER_SIZE];
+        byte[] initBuffer = new byte[MAX_ALLOC_BUFFER_SIZE];//每次创建2M空间大小,不断循环创建
         long remainingBytes = totalBytes;
         while (remainingBytes >= MAX_ALLOC_BUFFER_SIZE) {
           checkpointFile.write(initBuffer);

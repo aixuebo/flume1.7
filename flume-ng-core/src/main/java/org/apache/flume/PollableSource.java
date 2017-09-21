@@ -47,8 +47,10 @@ public interface PollableSource extends Source {
    */
   public Status process() throws EventDeliveryException;
 
+    //每一次process后sleep时间
   public long getBackOffSleepIncrement();
 
+    //每一次process后sleep的最大时间
   public long getMaxBackOffSleepInterval();
 
   public static enum Status {

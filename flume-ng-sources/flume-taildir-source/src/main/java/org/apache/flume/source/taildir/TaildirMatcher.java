@@ -62,6 +62,7 @@ import java.util.concurrent.TimeUnit;
  * @see TaildirSource
  * @see ReliableTaildirEventReader
  * @see TaildirSourceConfigurationConstants
+ * 该方法用于匹配一个目录下的所有有效的文件集合
  */
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
@@ -70,14 +71,14 @@ public class TaildirMatcher {
   private static final FileSystem FS = FileSystems.getDefault();
 
   // flag from configuration to switch off caching completely
-  private final boolean cachePatternMatching;
-  // id from configuration
+  private final boolean cachePatternMatching;//true表示使用缓存模式
+  // id from configuration 文件组
   private final String fileGroup;
   // plain string of the desired files from configuration
-  private final String filePattern;
+  private final String filePattern;//匹配文件夹以及正则表达式.比如C://aa/bb/cc/正则表达式
 
   // directory monitored for changes
-  private final File parentDir;
+  private final File parentDir;//父目录
   // cached instance for filtering files based on filePattern
   private final DirectoryStream.Filter<Path> fileFilter;
 
@@ -85,13 +86,13 @@ public class TaildirMatcher {
   // parent directory seen by the last check, rounded to seconds
   // initial value is used in first check only when it will be replaced instantly
   // (system time is positive)
-  private long lastSeenParentDirMTime = -1;
+  private long lastSeenParentDirMTime = -1;//上一次文件目录的修改事件
   // system time in milliseconds, time of the last check, rounded to seconds
   // initial value is used in first check only when it will be replaced instantly
   // (system time is positive)
-  private long lastCheckedTime = -1;
+  private long lastCheckedTime = -1;//上一次检查的时间
   // cached content, files which matched the pattern within the parent directory
-  private List<File> lastMatchedFiles = Lists.newArrayList();
+  private List<File> lastMatchedFiles = Lists.newArrayList();//缓存的匹配的文件集合
 
   /**
    * Package accessible constructor. From configuration context it represents a single
@@ -104,12 +105,12 @@ public class TaildirMatcher {
    * <p></p>
    * An instance of this class is created for each fileGroup
    *
-   * @param fileGroup arbitrary name of the group given by the config
+   * @param fileGroup arbitrary name of the group given by the config 设置一个文件组
    * @param filePattern parent directory plus regex pattern. No wildcards are allowed in directory
-   *                    name
+   *                    name 匹配文件夹以及正则表达式.比如C://aa/bb/cc/正则表达式
    * @param cachePatternMatching default true, recommended in every setup especially with huge
    *                             parent directories. Don't set when local system clock is not used
-   *                             for stamping mtime (eg: remote filesystems)
+   *                             for stamping mtime (eg: remote filesystems) 是否缓存上一次匹配的文件集合
    * @see TaildirSourceConfigurationConstants
    */
   TaildirMatcher(String fileGroup, String filePattern, boolean cachePatternMatching) {
@@ -120,19 +121,19 @@ public class TaildirMatcher {
 
     // calculate final members
     File f = new File(filePattern);
-    this.parentDir = f.getParentFile();
-    String regex = f.getName();
-    final PathMatcher matcher = FS.getPathMatcher("regex:" + regex);
+    this.parentDir = f.getParentFile();//父目录
+    String regex = f.getName();//抽取正则表达式
+    final PathMatcher matcher = FS.getPathMatcher("regex:" + regex);//抽取正则表达式
     this.fileFilter = new DirectoryStream.Filter<Path>() {
       @Override
       public boolean accept(Path entry) throws IOException {
-        return matcher.matches(entry.getFileName()) && !Files.isDirectory(entry);
+        return matcher.matches(entry.getFileName()) && !Files.isDirectory(entry);//找到匹配的文件,但是目录过滤掉
       }
     };
 
     // sanity check
     Preconditions.checkState(parentDir.exists(),
-        "Directory does not exist: " + parentDir.getAbsolutePath());
+        "Directory does not exist: " + parentDir.getAbsolutePath());//校验目录必须存在
   }
 
   /**
@@ -179,22 +180,23 @@ public class TaildirMatcher {
    * returns the list collected to the point when exception was thrown.
    *
    * @see #getMatchingFilesNoCache()
+   * 返回匹配的数据,可能是从缓存中加载的,也可能是重新加载的
    */
   List<File> getMatchingFiles() {
     long now = TimeUnit.SECONDS.toMillis(
         TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis()));
-    long currentParentDirMTime = parentDir.lastModified();
+    long currentParentDirMTime = parentDir.lastModified();//目录的最后修改时间
     List<File> result;
 
     // calculate matched files if
     // - we don't want to use cache (recalculate every time) OR
-    // - directory was clearly updated after the last check OR
+    // - directory was clearly updated after the last check OR 目录的最后修改时间被更改了
     // - last mtime change wasn't already checked for sure
     //   (system clock hasn't passed that second yet)
-    if (!cachePatternMatching ||
-        lastSeenParentDirMTime < currentParentDirMTime ||
-        !(currentParentDirMTime < lastCheckedTime)) {
-      lastMatchedFiles = sortByLastModifiedTime(getMatchingFilesNoCache());
+    if (!cachePatternMatching || //不使用缓存模式
+        lastSeenParentDirMTime < currentParentDirMTime || //说明有文件被改动了,
+        !(currentParentDirMTime < lastCheckedTime)) {//说明上一次校验的时间之后,目录最后修改时间变化了
+      lastMatchedFiles = sortByLastModifiedTime(getMatchingFilesNoCache());//重新匹配文件,并且按照最后修改时间排序
       lastSeenParentDirMTime = currentParentDirMTime;
       lastCheckedTime = now;
     }
@@ -217,6 +219,7 @@ public class TaildirMatcher {
    *
    * @see DirectoryStream
    * @see DirectoryStream.Filter
+   * 获取匹配的文件集合
    */
   private List<File> getMatchingFilesNoCache() {
     List<File> result = Lists.newArrayList();
@@ -238,6 +241,7 @@ public class TaildirMatcher {
    *
    * @param files list of files in any order
    * @return sorted list
+   * 基于文件的最后修改时间,对文件进行排序
    */
   private static List<File> sortByLastModifiedTime(List<File> files) {
     final HashMap<File, Long> lastModificationTimes = new HashMap<File, Long>(files.size());
@@ -263,6 +267,7 @@ public class TaildirMatcher {
         '}';
   }
 
+    //文件组相同,则返回true
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;

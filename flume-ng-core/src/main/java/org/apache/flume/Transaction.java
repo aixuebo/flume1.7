@@ -21,7 +21,9 @@ import org.apache.flume.channel.BasicChannelSemantics;
 import org.apache.flume.channel.BasicTransactionSemantics;
 
 /**
+ * 提供一个交易边界,在访问一个渠道的时候,即一个事务窗口
  * <p>Provides the transaction boundary while accessing a channel.</p>
+ * 一个交易事务实例被使用到环绕的渠道中,通过以下语法
  * <p>A <tt>Transaction</tt> instance is used to encompass channel access
  * via the following idiom:</p>
  * <pre><code>
@@ -47,12 +49,19 @@ import org.apache.flume.channel.BasicTransactionSemantics;
  * Transactions must be thread safe. To provide  a guarantee of thread safe
  * access to Transactions, see {@link BasicChannelSemantics} and
  * {@link  BasicTransactionSemantics}.
+ * 事务必须是线程安全的
  *
  * @see org.apache.flume.Channel
+ *
+ * 流程:
+ * a.首先打开事务,
+ * b.然后在打开的事务里面进行put和take操作,
+ * c.然后进行commit或者rooback操作
+ * d.然后进行close该事务操作
  */
 public interface Transaction {
 
-  enum TransactionState { Started, Committed, RolledBack, Closed }
+  enum TransactionState { Started, Committed, RolledBack, Closed } //分别对应事务的begin  commit  rollback close四个大操作
 
   /**
    * <p>Starts a transaction boundary for the current channel operation. If a

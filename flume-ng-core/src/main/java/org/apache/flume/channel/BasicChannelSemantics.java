@@ -34,6 +34,7 @@ import com.google.common.base.Preconditions;
  * implied thread-local semantics of the {@link Transaction} class,
  * which is required to extend {@link BasicTransactionSemantics}.
  * </p>
+ * 线程安全的channel
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable

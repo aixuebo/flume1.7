@@ -54,11 +54,13 @@ import java.util.concurrent.TimeUnit;
  * <p>
  * A durable {@link Channel} implementation that uses the local file system for
  * its storage.
+ * 使用本地文件系统存储数据---一种可耐用的channel实现
  * </p>
  * <p>
  * FileChannel works by writing all transactions to a set of directories
  * specified in the configuration. Additionally, when a commit occurs
  * the transaction is synced to disk.
+ * 原理是所有的交易被写入到一组目录集合中,一旦commit,则将其同步到磁盘上
  * </p>
  * <p>
  * FileChannel is marked
@@ -92,7 +94,7 @@ public class FileChannel extends BasicChannelSemantics {
   private Semaphore queueRemaining;
   private final ThreadLocal<FileBackedTransaction> transactions =
       new ThreadLocal<FileBackedTransaction>();
-  private String channelNameDescriptor = "[channel=unknown]";
+  private String channelNameDescriptor = "[channel=unknown]";//哪个渠道,对渠道的描述信息
   private ChannelCounter channelCounter;
   private boolean useLogReplayV1;
   private boolean useFastReplay = false;
@@ -421,8 +423,10 @@ public class FileChannel extends BasicChannelSemantics {
   /**
    * Transaction backed by a file. This transaction supports either puts
    * or takes but not both.
+   * 表示一个事务
    */
   static class FileBackedTransaction extends BasicTransactionSemantics {
+      //两个队列,分别存储take和put的元素
     private final LinkedBlockingDeque<FlumeEventPointer> takeList;
     private final LinkedBlockingDeque<FlumeEventPointer> putList;
     private final long transactionID;
@@ -434,6 +438,17 @@ public class FileChannel extends BasicChannelSemantics {
     private final ChannelCounter channelCounter;
     private final boolean fsyncPerTransaction;
 
+      /**
+       *
+       * @param log
+       * @param transactionID 事务的ID
+       * @param transCapacity 事务中的队列长度,能容纳put和take元素的数量
+       * @param keepAlive
+       * @param queueRemaining
+       * @param name
+       * @param fsyncPerTransaction
+       * @param counter 统计计数器
+       */
     public FileBackedTransaction(Log log, long transactionID,
                                  int transCapacity, int keepAlive, Semaphore queueRemaining,
                                  String name, boolean fsyncPerTransaction, ChannelCounter
@@ -450,10 +465,12 @@ public class FileChannel extends BasicChannelSemantics {
       this.channelCounter = counter;
     }
 
+      //是否是close状态
     private boolean isClosed() {
       return State.CLOSED.equals(getState());
     }
 
+      //返回事务的状态
     private String getStateAsString() {
       return String.valueOf(getState());
     }
@@ -461,7 +478,7 @@ public class FileChannel extends BasicChannelSemantics {
     @Override
     protected void doPut(Event event) throws InterruptedException {
       channelCounter.incrementEventPutAttemptCount();
-      if (putList.remainingCapacity() == 0) {
+      if (putList.remainingCapacity() == 0) {//说明没空间了
         throw new ChannelException("Put queue for FileBackedTransaction " +
             "of capacity " + putList.size() + " full, consider " +
             "committing more frequently, increasing capacity or " +
@@ -481,7 +498,7 @@ public class FileChannel extends BasicChannelSemantics {
       try {
         FlumeEventPointer ptr = log.put(transactionID, event);
         Preconditions.checkState(putList.offer(ptr), "putList offer failed "
-            + channelNameDescriptor);
+            + channelNameDescriptor);//将成功添加的元素返回值添加到队列中
         queue.addWithoutCommit(ptr, transactionID);
         success = true;
       } catch (IOException e) {
@@ -500,7 +517,7 @@ public class FileChannel extends BasicChannelSemantics {
     @Override
     protected Event doTake() throws InterruptedException {
       channelCounter.incrementEventTakeAttemptCount();
-      if (takeList.remainingCapacity() == 0) {
+      if (takeList.remainingCapacity() == 0) {//没有空间了,说明生产者太快了
         throw new ChannelException("Take list for FileBackedTransaction, capacity " +
             takeList.size() + " full, consider committing more frequently, " +
             "increasing capacity, or increasing thread count. "

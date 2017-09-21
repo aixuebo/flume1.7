@@ -47,7 +47,7 @@ public class TaildirSourceConfigurationConstants {
 
   /** Whether to add the byte offset of a tailed line to the header */
   public static final String BYTE_OFFSET_HEADER = "byteOffsetHeader";
-  public static final String BYTE_OFFSET_HEADER_KEY = "byteoffset";
+  public static final String BYTE_OFFSET_HEADER_KEY = "byteoffset";//设置该行内容在文件中的偏移量
   public static final boolean DEFAULT_BYTE_OFFSET_HEADER = false;
 
   /** Whether to cache the list of files matching the specified file patterns till parent directory

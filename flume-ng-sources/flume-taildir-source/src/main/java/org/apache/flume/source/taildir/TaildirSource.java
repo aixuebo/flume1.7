@@ -56,6 +56,9 @@ import com.google.common.collect.Table;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.gson.Gson;
 
+/**
+ * 算是读取程序的入口类,通过该类,串联了整个包下的类
+ */
 public class TaildirSource extends AbstractSource implements
     PollableSource, Configurable {
 
@@ -64,24 +67,24 @@ public class TaildirSource extends AbstractSource implements
   private Map<String, String> filePaths;
   private Table<String, String, String> headerTable;
   private int batchSize;
-  private String positionFilePath;
-  private boolean skipToEnd;
+  private String positionFilePath;//读取json文件,该文件存储每一个file文件最后读取的position位置
+  private boolean skipToEnd;//表示从文件的最后开始读取,还是从文件的头开始读取,true表示从文件最后开始读取
   private boolean byteOffsetHeader;
 
   private SourceCounter sourceCounter;
-  private ReliableTaildirEventReader reader;
+  private ReliableTaildirEventReader reader;//可靠的reader去读取数据
   private ScheduledExecutorService idleFileChecker;
   private ScheduledExecutorService positionWriter;
   private int retryInterval = 1000;
   private int maxRetryInterval = 5000;
-  private int idleTimeout;
+  private int idleTimeout;//说明文件已经长时间没有更新内容了,时间阀值
   private int checkIdleInterval = 5000;
   private int writePosInitDelay = 5000;
   private int writePosInterval;
   private boolean cachePatternMatching;
 
-  private List<Long> existingInodes = new CopyOnWriteArrayList<Long>();
-  private List<Long> idleInodes = new CopyOnWriteArrayList<Long>();
+  private List<Long> existingInodes = new CopyOnWriteArrayList<Long>();//所有存在的文件集合
+  private List<Long> idleInodes = new CopyOnWriteArrayList<Long>();//说明文件已经长时间没有更新内容了,并且文件尚未被关闭,说明该文件闲置很久了的集合
   private Long backoffSleepIncrement;
   private Long maxBackOffSleepInterval;
   private boolean fileHeader;
@@ -104,11 +107,14 @@ public class TaildirSource extends AbstractSource implements
     } catch (IOException e) {
       throw new FlumeException("Error instantiating ReliableTaildirEventReader", e);
     }
+
+    //第一个定时器
     idleFileChecker = Executors.newSingleThreadScheduledExecutor(
         new ThreadFactoryBuilder().setNameFormat("idleFileChecker").build());
     idleFileChecker.scheduleWithFixedDelay(new idleFileCheckerRunnable(),
         idleTimeout, checkIdleInterval, TimeUnit.MILLISECONDS);
 
+    //第二个定时器
     positionWriter = Executors.newSingleThreadScheduledExecutor(
         new ThreadFactoryBuilder().setNameFormat("positionWriter").build());
     positionWriter.scheduleWithFixedDelay(new PositionWriterRunnable(),
@@ -123,7 +129,7 @@ public class TaildirSource extends AbstractSource implements
   public synchronized void stop() {
     try {
       super.stop();
-      ExecutorService[] services = {idleFileChecker, positionWriter};
+      ExecutorService[] services = {idleFileChecker, positionWriter};//停止定时服务
       for (ExecutorService service : services) {
         service.shutdown();
         if (!service.awaitTermination(1, TimeUnit.SECONDS)) {
@@ -149,13 +155,20 @@ public class TaildirSource extends AbstractSource implements
         positionFilePath, skipToEnd, byteOffsetHeader, idleTimeout, writePosInterval);
   }
 
+    //设置初始化值
   @Override
   public synchronized void configure(Context context) {
-    String fileGroups = context.getString(FILE_GROUPS);
+      /**
+       maming.sources.h5log.filegroups=h5f apf ###定义两个分组
+       maming.sources.h5log.filegroups.apf=/server/h5_mark/tomcat/logs/mark.log
+       maming.sources.h5log.filegroups.h5f=/server/h5_mark/tomcat/logs/h5Mark.log
+       */
+    String fileGroups = context.getString(FILE_GROUPS);//获取filegroups对应的值
     Preconditions.checkState(fileGroups != null, "Missing param: " + FILE_GROUPS);
 
+      //返回结果是apf=/server/h5_mark/tomcat/logs/mark.log   h5f=/server/h5_mark/tomcat/logs/h5Mark.log
     filePaths = selectByKeys(context.getSubProperties(FILE_GROUPS_PREFIX),
-                             fileGroups.split("\\s+"));
+                             fileGroups.split("\\s+")); //获取filegroups.对应的值,并且按照空格拆分filegroups
     Preconditions.checkState(!filePaths.isEmpty(),
         "Mapping for tailing files is empty or invalid: '" + FILE_GROUPS_PREFIX + "'");
 
@@ -190,6 +203,7 @@ public class TaildirSource extends AbstractSource implements
     }
   }
 
+    //从map集合中,获取key[]属性集合对应的值
   private Map<String, String> selectByKeys(Map<String, String> map, String[] keys) {
     Map<String, String> result = Maps.newHashMap();
     for (String key : keys) {
@@ -214,15 +228,16 @@ public class TaildirSource extends AbstractSource implements
     return sourceCounter;
   }
 
+    //每次都由PollableSourceRunner类调用,去读取日志
   @Override
   public Status process() {
     Status status = Status.READY;
     try {
       existingInodes.clear();
-      existingInodes.addAll(reader.updateTailFiles());
+      existingInodes.addAll(reader.updateTailFiles());//获取所有的文件集合
       for (long inode : existingInodes) {
         TailFile tf = reader.getTailFiles().get(inode);
-        if (tf.needTail()) {
+        if (tf.needTail()) {//说明有内容,则去读取内容处理
           tailFileProcess(tf, true);
         }
       }
@@ -249,6 +264,7 @@ public class TaildirSource extends AbstractSource implements
     return maxBackOffSleepInterval;
   }
 
+    //不断读取一个文件,直到读取文件没有数据未知返回
   private void tailFileProcess(TailFile tf, boolean backoffWithoutNL)
       throws IOException, InterruptedException {
     while (true) {
@@ -257,10 +273,10 @@ public class TaildirSource extends AbstractSource implements
       if (events.isEmpty()) {
         break;
       }
-      sourceCounter.addToEventReceivedCount(events.size());
-      sourceCounter.incrementAppendBatchReceivedCount();
+      sourceCounter.addToEventReceivedCount(events.size());//表示source接收到了多少个事件
+      sourceCounter.incrementAppendBatchReceivedCount();//表示source接收到了多少次
       try {
-        getChannelProcessor().processEventBatch(events);
+        getChannelProcessor().processEventBatch(events);//发给channel去处理
         reader.commit();
       } catch (ChannelException ex) {
         logger.warn("The channel is full or unexpected failure. " +
@@ -271,8 +287,8 @@ public class TaildirSource extends AbstractSource implements
         continue;
       }
       retryInterval = 1000;
-      sourceCounter.addToEventAcceptedCount(events.size());
-      sourceCounter.incrementAppendBatchAcceptedCount();
+      sourceCounter.addToEventAcceptedCount(events.size());//表示成功发送给channel多少个事件
+      sourceCounter.incrementAppendBatchAcceptedCount();//表示成功发送给channel多少次
       if (events.size() < batchSize) {
         break;
       }
@@ -293,15 +309,16 @@ public class TaildirSource extends AbstractSource implements
 
   /**
    * Runnable class that checks whether there are files which should be closed.
+   * 定期执行,发现哪些文件已经闲置很久了,将其添加到集合中
    */
   private class idleFileCheckerRunnable implements Runnable {
     @Override
     public void run() {
       try {
         long now = System.currentTimeMillis();
-        for (TailFile tf : reader.getTailFiles().values()) {
-          if (tf.getLastUpdated() + idleTimeout < now && tf.getRaf() != null) {
-            idleInodes.add(tf.getInode());
+        for (TailFile tf : reader.getTailFiles().values()) {//正在读取的文件集合
+          if (tf.getLastUpdated() + idleTimeout < now && tf.getRaf() != null) {//说明文件已经长时间没有更新内容了,并且文件尚未被关闭
+            idleInodes.add(tf.getInode());//说明文件已经长时间没有更新内容了,并且文件尚未被关闭,说明该文件闲置很久了的集合
           }
         }
       } catch (Throwable t) {
@@ -313,6 +330,7 @@ public class TaildirSource extends AbstractSource implements
   /**
    * Runnable class that writes a position file which has the last read position
    * of each file.
+   * 写入每一个文件的最后读取位置到文件中
    */
   private class PositionWriterRunnable implements Runnable {
     @Override
@@ -341,6 +359,7 @@ public class TaildirSource extends AbstractSource implements
     }
   }
 
+    //获取活跃的读取的文件
   private String toPosInfoJson() {
     @SuppressWarnings("rawtypes")
     List<Map> posInfos = Lists.newArrayList();

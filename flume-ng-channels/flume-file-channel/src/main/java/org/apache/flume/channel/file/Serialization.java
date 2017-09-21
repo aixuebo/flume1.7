@@ -58,16 +58,19 @@ public class Serialization {
 
   public static final Logger LOG = LoggerFactory.getLogger(Serialization.class);
 
+  //获取.tmp文件
   static File getMetaDataTempFile(File metaDataFile) {
     String metaDataFileName = metaDataFile.getName() + METADATA_TMP_FILENAME;
     return new File(metaDataFile.getParentFile(), metaDataFileName);
   }
 
+    //获取.meta文件
   static File getMetaDataFile(File file) {
     String metaDataFileName = file.getName() + METADATA_FILENAME;
     return new File(file.getParentFile(), metaDataFileName);
   }
 
+    //获取.meta.old文件
   // Support platforms that cannot do atomic renames - FLUME-1699
   static File getOldMetaDataFile(File file) {
     String oldMetaDataFileName = file.getName() + OLD_METADATA_FILENAME;
@@ -81,6 +84,7 @@ public class Serialization {
    * @param excludes      - Names of files which should not be deleted from this
    *                      directory.
    * @return - true if all files were successfully deleted, false otherwise.
+   * 删除该文件夹下所有文件,但是在excludes里面的文件是不能被删除的
    */
   static boolean deleteAllFiles(File checkpointDir,
                                 @Nullable Set<String> excludes) {
@@ -101,6 +105,7 @@ public class Serialization {
     if (excludes == null) {
       excludes = Collections.emptySet();
     }
+
     for (File file : files) {
       if (excludes.contains(file.getName())) {
         LOG.info("Skipping " + file.getName() + " because it is in excludes " +
@@ -127,6 +132,7 @@ public class Serialization {
    * @param from File to copy - this file should exist
    * @param to   Destination file - this file should not exist
    * @return true if the copy was successful
+   * 将数据 复制一份
    */
   public static boolean copyFile(File from, File to) throws IOException {
     Preconditions.checkNotNull(from, "Source file is null, file copy failed.");

@@ -33,6 +33,7 @@ import com.google.common.collect.Maps;
  */
 public class Context {
 
+    //key是全路径,比如aa.bb.cc
   private Map<String, String> parameters;
 
   public Context() {
@@ -81,16 +82,17 @@ public class Context {
    *   empty
    * @throws IllegalArguemntException if the given prefix does not end with
    *   a period character.
+   *   比如aa.bb.cc value,如果参数是aa.bb,因此返回值是cc value这种匹配结果
    */
   public ImmutableMap<String, String> getSubProperties(String prefix) {
-    Preconditions.checkArgument(prefix.endsWith("."),
+    Preconditions.checkArgument(prefix.endsWith("."),//必须以.结尾
         "The given prefix does not end with a period (" + prefix + ")");
     Map<String, String> result = Maps.newHashMap();
     synchronized (parameters) {
-      for (String key : parameters.keySet()) {
-        if (key.startsWith(prefix)) {
-          String name = key.substring(prefix.length());
-          result.put(name, parameters.get(key));
+      for (String key : parameters.keySet()) {//循环每一个参数
+        if (key.startsWith(prefix)) {//找到每一个key以参数为前缀的
+          String name = key.substring(prefix.length());//去除前缀
+          result.put(name, parameters.get(key));//去除前缀后的name以及对应的具体的value
         }
       }
     }

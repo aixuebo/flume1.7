@@ -24,9 +24,9 @@ public class SourceCounter extends MonitoredCounterGroup implements
     SourceCounterMBean {
 
   private static final String COUNTER_EVENTS_RECEIVED =
-      "src.events.received";
+      "src.events.received";//表示source接收到了多少个事件
   private static final String COUNTER_EVENTS_ACCEPTED =
-      "src.events.accepted";
+      "src.events.accepted";//表示成功发送给channel多少个事件
 
   private static final String COUNTER_APPEND_RECEIVED =
       "src.append.received";
@@ -34,9 +34,9 @@ public class SourceCounter extends MonitoredCounterGroup implements
       "src.append.accepted";
 
   private static final String COUNTER_APPEND_BATCH_RECEIVED =
-      "src.append-batch.received";
+      "src.append-batch.received";//表示source接收到了多少次
   private static final String COUNTER_APPEND_BATCH_ACCEPTED =
-      "src.append-batch.accepted";
+      "src.append-batch.accepted";//表示成功发送给channel多少次
   
   private static final String COUNTER_OPEN_CONNECTION_COUNT =
           "src.open-connection.count";
@@ -66,6 +66,7 @@ public class SourceCounter extends MonitoredCounterGroup implements
     return increment(COUNTER_EVENTS_RECEIVED);
   }
 
+    //表示source接收到了多少个事件
   public long addToEventReceivedCount(long delta) {
     return addAndGet(COUNTER_EVENTS_RECEIVED, delta);
   }
@@ -79,6 +80,7 @@ public class SourceCounter extends MonitoredCounterGroup implements
     return increment(COUNTER_EVENTS_ACCEPTED);
   }
 
+    //表示成功发送给channel多少个事件
   public long addToEventAcceptedCount(long delta) {
     return addAndGet(COUNTER_EVENTS_ACCEPTED, delta);
   }
@@ -106,6 +108,7 @@ public class SourceCounter extends MonitoredCounterGroup implements
     return get(COUNTER_APPEND_BATCH_RECEIVED);
   }
 
+    //表示source接收到了多少次
   public long incrementAppendBatchReceivedCount() {
     return increment(COUNTER_APPEND_BATCH_RECEIVED);
   }
@@ -115,6 +118,7 @@ public class SourceCounter extends MonitoredCounterGroup implements
     return get(COUNTER_APPEND_BATCH_ACCEPTED);
   }
 
+    //表示成功发送给channel多少次
   public long incrementAppendBatchAcceptedCount() {
     return increment(COUNTER_APPEND_BATCH_ACCEPTED);
   }

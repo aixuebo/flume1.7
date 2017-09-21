@@ -35,7 +35,8 @@ class LogFileV2 extends LogFile {
   protected static final Logger LOGGER =
       LoggerFactory.getLogger(LogFileV2.class);
 
-  private static final long OFFSET_CHECKPOINT = 2 * Serialization.SIZE_OF_INT;
+    //每一个文件存储两个int,一个是文件版本号,一个是文件ID,logFileID
+  private static final long OFFSET_CHECKPOINT = 2 * Serialization.SIZE_OF_INT;//2个int需要的字节数,即8个字节
 
   private LogFileV2() {}
 
@@ -46,13 +47,13 @@ class LogFileV2 extends LogFile {
       boolean error = true;
       try {
         RandomAccessFile writeFileHandle = getFileHandle();
-        int version = writeFileHandle.readInt();
+        int version = writeFileHandle.readInt();//文件存储一个版本号
         if (version != getVersion()) {
           throw new IOException("The version of log file: "
               + file.getCanonicalPath() + " is different from expected "
               + " version: expected = " + getVersion() + ", found = " + version);
         }
-        int fid = writeFileHandle.readInt();
+        int fid = writeFileHandle.readInt();//存储文件id
         if (fid != logFileID) {
           throw new IOException("The file id of log file: "
               + file.getCanonicalPath() + " is different from expected "
@@ -80,7 +81,7 @@ class LogFileV2 extends LogFile {
     void markCheckpoint(long currentPosition, long logWriteOrderID)
         throws IOException {
       RandomAccessFile writeFileHandle = getFileHandle();
-      writeFileHandle.seek(OFFSET_CHECKPOINT);
+      writeFileHandle.seek(OFFSET_CHECKPOINT);//跳过前8个字节位置
       writeFileHandle.writeLong(currentPosition);
       writeFileHandle.writeLong(logWriteOrderID);
       writeFileHandle.getChannel().force(true);

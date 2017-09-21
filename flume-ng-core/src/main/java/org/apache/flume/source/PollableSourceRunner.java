@@ -130,9 +130,10 @@ public class PollableSourceRunner extends SourceRunner {
         counterGroup.incrementAndGet("runner.polls");
 
         try {
-          if (source.process().equals(PollableSource.Status.BACKOFF)) {
+          if (source.process().equals(PollableSource.Status.BACKOFF)) {//返回source读取的状态
             counterGroup.incrementAndGet("runner.backoffs");
 
+              //每次失败都会增加计数器,用于延迟sleep时间
             Thread.sleep(Math.min(
                 counterGroup.incrementAndGet("runner.backoffs.consecutive")
                 * source.getBackOffSleepIncrement(), source.getMaxBackOffSleepInterval()));

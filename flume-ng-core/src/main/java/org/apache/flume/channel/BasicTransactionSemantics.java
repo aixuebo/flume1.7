@@ -36,6 +36,7 @@ import com.google.common.base.Preconditions;
  * only by the thread that created the transaction.  Nested calls to
  * <code>begin()</code> and <code>close()</code> are supported as long
  * as they are balanced.
+ * 是事务交易的基本实现,该类保证线程安全
  * </p>
  * <p>
  * Subclasses need only implement <code>doPut</code>,
@@ -61,8 +62,17 @@ import com.google.common.base.Preconditions;
 public abstract class BasicTransactionSemantics implements Transaction {
 
   private State state;
-  private long initialThreadId;
+  private long initialThreadId;//初始化持有该事务的线程ID
 
+  //子类要实现的方法
+
+    /**
+     * 流程:
+     * a.首先打开事务,
+     * b.然后在打开的事务里面进行put和take操作,
+     * c.然后进行commit或者rooback操作
+     * d.然后进行close该事务操作
+     */
   protected void doBegin() throws InterruptedException {}
   protected abstract void doPut(Event event) throws InterruptedException;
   protected abstract Event doTake() throws InterruptedException;
@@ -72,7 +82,7 @@ public abstract class BasicTransactionSemantics implements Transaction {
 
   protected BasicTransactionSemantics() {
     state = State.NEW;
-    initialThreadId = Thread.currentThread().getId();
+    initialThreadId = Thread.currentThread().getId();//初始化持有该事务的线程ID
   }
 
   /**
@@ -83,8 +93,8 @@ public abstract class BasicTransactionSemantics implements Transaction {
    */
   protected void put(Event event) {
     Preconditions.checkState(Thread.currentThread().getId() == initialThreadId,
-        "put() called from different thread than getTransaction()!");
-    Preconditions.checkState(state.equals(State.OPEN),
+        "put() called from different thread than getTransaction()!");//确保线程安全
+    Preconditions.checkState(state.equals(State.OPEN),//此时一定是事务打开了
         "put() called when transaction is %s!", state);
     Preconditions.checkArgument(event != null,
         "put() called with null event!");
@@ -127,9 +137,9 @@ public abstract class BasicTransactionSemantics implements Transaction {
   @Override
   public void begin() {
     Preconditions.checkState(Thread.currentThread().getId() == initialThreadId,
-        "begin() called from different thread than getTransaction()!");
+        "begin() called from different thread than getTransaction()!");//确保线程安全
     Preconditions.checkState(state.equals(State.NEW),
-        "begin() called when transaction is " + state + "!");
+        "begin() called when transaction is " + state + "!");//确保状态只能是new
 
     try {
       doBegin();
@@ -137,13 +147,13 @@ public abstract class BasicTransactionSemantics implements Transaction {
       Thread.currentThread().interrupt();
       throw new ChannelException(e.toString(), e);
     }
-    state = State.OPEN;
+    state = State.OPEN;//状态更改
   }
 
   @Override
   public void commit() {
     Preconditions.checkState(Thread.currentThread().getId() == initialThreadId,
-        "commit() called from different thread than getTransaction()!");
+        "commit() called from different thread than getTransaction()!");//确保线程安全
     Preconditions.checkState(state.equals(State.OPEN),
         "commit() called when transaction is %s!", state);
 
@@ -159,7 +169,7 @@ public abstract class BasicTransactionSemantics implements Transaction {
   @Override
   public void rollback() {
     Preconditions.checkState(Thread.currentThread().getId() == initialThreadId,
-        "rollback() called from different thread than getTransaction()!");
+        "rollback() called from different thread than getTransaction()!");//确保线程安全
     Preconditions.checkState(state.equals(State.OPEN),
         "rollback() called when transaction is %s!", state);
 
@@ -175,7 +185,7 @@ public abstract class BasicTransactionSemantics implements Transaction {
   @Override
   public void close() {
     Preconditions.checkState(Thread.currentThread().getId() == initialThreadId,
-        "close() called from different thread than getTransaction()!");
+        "close() called from different thread than getTransaction()!");//确保线程安全
     Preconditions.checkState(
             state.equals(State.NEW) || state.equals(State.COMPLETED),
             "close() called when transaction is %s"
@@ -189,8 +199,8 @@ public abstract class BasicTransactionSemantics implements Transaction {
   public String toString() {
     StringBuilder builder = new StringBuilder();
     builder.append("BasicTransactionSemantics: {");
-    builder.append(" state:").append(state);
-    builder.append(" initialThreadId:").append(initialThreadId);
+    builder.append(" state:").append(state);//此时该事务的状态
+    builder.append(" initialThreadId:").append(initialThreadId);//持有该事务的线程ID
     builder.append(" }");
     return builder.toString();
   }
@@ -201,15 +211,15 @@ public abstract class BasicTransactionSemantics implements Transaction {
    * </p>
    * <dl>
    * <dt>NEW</dt>
-   * <dd>A newly created transaction that has not yet begun.</dd>
+   * <dd>A newly created transaction that has not yet begun.</dd> 说明一个事物刚刚创建,但是还没有开始
    * <dt>OPEN</dt>
-   * <dd>A transaction that is open. It is permissible to commit or rollback.
+   * <dd>A transaction that is open. It is permissible to commit or rollback.说明事务已经开始了,但是还没有提交或者回滚
    * </dd>
    * <dt>COMPLETED</dt>
    * <dd>This transaction has been committed or rolled back. It is illegal to
-   * perform any further operations beyond closing it.</dd>
+   * perform any further operations beyond closing it.</dd> 说明该事物已经提交或者回滚了
    * <dt>CLOSED</dt>
-   * <dd>A closed transaction. No further operations are permitted.</dd>
+   * <dd>A closed transaction. No further operations are permitted.</dd>//说明该事务操作已经全部执行完成
    * </dl>
    */
   protected static enum State {

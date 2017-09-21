@@ -216,9 +216,9 @@ final class FlumeEventQueue {
   /**
    * Must be called when a put happens to the log. This ensures that put commits
    * after checkpoints will retrieve all events committed in that txn.
-   *
+   * 说明已经元素已经put到log中了,但是没有被commit
    * @param e
-   * @param transactionID
+   * @param transactionID   该提交属于哪个事务提交的
    */
   synchronized void addWithoutCommit(FlumeEventPointer e, long transactionID) {
     inflightPuts.addEvent(transactionID, e.toLong());

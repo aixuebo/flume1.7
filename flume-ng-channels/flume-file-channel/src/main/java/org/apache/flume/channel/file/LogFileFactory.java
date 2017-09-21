@@ -63,6 +63,7 @@ class LogFileFactory {
     }
   }
 
+    //因为是写文件,因此说明该文件一定是用v3版本,因为这个版本的flume主要使用的就是v3去写的
   static LogFile.Writer getWriter(File file, int logFileID,
                                   long maxFileSize, @Nullable Key encryptionKey,
                                   @Nullable String encryptionKeyAlias,

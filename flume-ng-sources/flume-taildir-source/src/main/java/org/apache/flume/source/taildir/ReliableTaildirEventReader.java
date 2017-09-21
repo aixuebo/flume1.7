@@ -43,30 +43,35 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+//可靠的方式读取文件
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
 public class ReliableTaildirEventReader implements ReliableEventReader {
   private static final Logger logger = LoggerFactory.getLogger(ReliableTaildirEventReader.class);
 
-  private final List<TaildirMatcher> taildirCache;
+  private final List<TaildirMatcher> taildirCache;//每一个path匹配对应的TaildirMatcher对象集合
   private final Table<String, String, String> headerTable;
 
-  private TailFile currentFile = null;
-  private Map<Long, TailFile> tailFiles = Maps.newHashMap();
+  private TailFile currentFile = null;//当前在读取哪个文件
+  private Map<Long, TailFile> tailFiles = Maps.newHashMap();//key是inode,表示唯一的文件,value是该文件如何读取信息的对象
   private long updateTime;
-  private boolean addByteOffset;
-  private boolean cachePatternMatching;
-  private boolean committed = true;
-  private final boolean annotateFileName;
-  private final String fileNameHeader;
+  private boolean addByteOffset;//true表示要返回该行数据第一个字节在文件中的偏移量
+  private boolean cachePatternMatching;//匹配的文件集合是否需要缓存
+  private boolean committed = true;//可靠的,因此会有一个提交的过程
+  private final boolean annotateFileName;//true表示事件会知道这些数据是来自于哪个文件
+  private final String fileNameHeader;//用于存储表示文件名的key,方便事件通过该key获取文件名
 
   /**
    * Create a ReliableTaildirEventReader to watch the given directory.
    */
-  private ReliableTaildirEventReader(Map<String, String> filePaths,
-      Table<String, String, String> headerTable, String positionFilePath,
-      boolean skipToEnd, boolean addByteOffset, boolean cachePatternMatching,
-      boolean annotateFileName, String fileNameHeader) throws IOException {
+  private ReliableTaildirEventReader(Map<String, String> filePaths,//key是文件组name,value是匹配的文件path路径表达式
+      Table<String, String, String> headerTable,
+      String positionFilePath,//读取json文件,该文件存储每一个file文件最后读取的position位置
+      boolean skipToEnd,//表示从文件的最后开始读取,还是从文件的头开始读取,true表示从文件最后开始读取
+      boolean addByteOffset,//true表示要返回该行数据第一个字节在文件中的偏移量
+      boolean cachePatternMatching,//匹配的文件集合是否需要缓存
+      boolean annotateFileName,//true表示事件会知道这些数据是来自于哪个文件
+      String fileNameHeader) throws IOException {//用于存储表示文件名的key,方便事件通过该key获取文件名
     // Sanity checks
     Preconditions.checkNotNull(filePaths);
     Preconditions.checkNotNull(positionFilePath);
@@ -76,9 +81,10 @@ public class ReliableTaildirEventReader implements ReliableEventReader {
           new Object[] { ReliableTaildirEventReader.class.getSimpleName(), filePaths });
     }
 
+    //每一个TaildirMatcher表示可以通过一个文件路径获取匹配的文件集合
     List<TaildirMatcher> taildirCache = Lists.newArrayList();
-    for (Entry<String, String> e : filePaths.entrySet()) {
-      taildirCache.add(new TaildirMatcher(e.getKey(), e.getValue(), cachePatternMatching));
+    for (Entry<String, String> e : filePaths.entrySet()) {//循环每一个文件路径表达式
+      taildirCache.add(new TaildirMatcher(e.getKey(), e.getValue(), cachePatternMatching));//去匹配需要的文件
     }
     logger.info("taildirCache: " + taildirCache.toString());
     logger.info("headerTable: " + headerTable.toString());
@@ -92,12 +98,13 @@ public class ReliableTaildirEventReader implements ReliableEventReader {
     updateTailFiles(skipToEnd);
 
     logger.info("Updating position from position file: " + positionFilePath);
-    loadPositionFile(positionFilePath);
+    loadPositionFile(positionFilePath);//读取json文件,该文件存储每一个file文件最后读取的position位置
   }
 
   /**
    * Load a position file which has the last read position of each file.
    * If the position file exists, update tailFiles mapping.
+   * 读取json文件,该文件存储每一个file文件最后读取的position位置
    */
   public void loadPositionFile(String filePath) {
     Long inode, pos;
@@ -106,14 +113,14 @@ public class ReliableTaildirEventReader implements ReliableEventReader {
     JsonReader jr = null;
     try {
       fr = new FileReader(filePath);
-      jr = new JsonReader(fr);
+      jr = new JsonReader(fr);//将文件转换给json对象
       jr.beginArray();
       while (jr.hasNext()) {
         inode = null;
         pos = null;
         path = null;
         jr.beginObject();
-        while (jr.hasNext()) {
+        while (jr.hasNext()) {//一行由inode、pos、file组成
           switch (jr.nextName()) {
             case "inode":
               inode = jr.nextLong();
@@ -133,7 +140,7 @@ public class ReliableTaildirEventReader implements ReliableEventReader {
               + "inode: " + inode + ", pos: " + pos + ", path: " + path);
         }
         TailFile tf = tailFiles.get(inode);
-        if (tf != null && tf.updatePos(path, inode, pos)) {
+        if (tf != null && tf.updatePos(path, inode, pos)) {//更新最后读取的pos位置
           tailFiles.put(inode, tf);
         } else {
           logger.info("Missing file: " + path + ", inode: " + inode + ", pos: " + pos);
@@ -162,6 +169,7 @@ public class ReliableTaildirEventReader implements ReliableEventReader {
     this.currentFile = currentFile;
   }
 
+    //读取一行数据
   @Override
   public Event readEvent() throws IOException {
     List<Event> events = readEvents(1);
@@ -171,17 +179,20 @@ public class ReliableTaildirEventReader implements ReliableEventReader {
     return events.get(0);
   }
 
+    //读取多行数据
   @Override
   public List<Event> readEvents(int numEvents) throws IOException {
     return readEvents(numEvents, false);
   }
 
+    //读取某一个文件的多行数据
   @VisibleForTesting
   public List<Event> readEvents(TailFile tf, int numEvents) throws IOException {
     setCurrentFile(tf);
     return readEvents(numEvents, true);
   }
 
+    //读取多行记录
   public List<Event> readEvents(int numEvents, boolean backoffWithoutNL)
       throws IOException {
     if (!committed) {
@@ -192,19 +203,19 @@ public class ReliableTaildirEventReader implements ReliableEventReader {
       long lastPos = currentFile.getPos();
       currentFile.updateFilePos(lastPos);
     }
-    List<Event> events = currentFile.readEvents(numEvents, backoffWithoutNL, addByteOffset);
+    List<Event> events = currentFile.readEvents(numEvents, backoffWithoutNL, addByteOffset);//读取若干行数据
     if (events.isEmpty()) {
       return events;
     }
 
-    Map<String, String> headers = currentFile.getHeaders();
+    Map<String, String> headers = currentFile.getHeaders();//头文件信息
     if (annotateFileName || (headers != null && !headers.isEmpty())) {
-      for (Event event : events) {
+      for (Event event : events) {//循环每一个事件
         if (headers != null && !headers.isEmpty()) {
-          event.getHeaders().putAll(headers);
+          event.getHeaders().putAll(headers);//将文件的header信息添加到每一个事件里面
         }
         if (annotateFileName) {
-          event.getHeaders().put(fileNameHeader, currentFile.getPath());
+          event.getHeaders().put(fileNameHeader, currentFile.getPath());//true表示事件会知道这些数据是来自于哪个文件
         }
       }
     }
@@ -233,22 +244,24 @@ public class ReliableTaildirEventReader implements ReliableEventReader {
   /**
    * Update tailFiles mapping if a new file is created or appends are detected
    * to the existing file.
+   * @param skipToEnd 表示从文件的最后开始读取,还是从文件的头开始读取,true表示从文件最后开始读取
+   * 当有新文件的时候,会将新文件也加入到读取集合中
    */
   public List<Long> updateTailFiles(boolean skipToEnd) throws IOException {
     updateTime = System.currentTimeMillis();
     List<Long> updatedInodes = Lists.newArrayList();
 
-    for (TaildirMatcher taildir : taildirCache) {
+    for (TaildirMatcher taildir : taildirCache) {//循环每一个路径匹配对象
       Map<String, String> headers = headerTable.row(taildir.getFileGroup());
 
-      for (File f : taildir.getMatchingFiles()) {
-        long inode = getInode(f);
-        TailFile tf = tailFiles.get(inode);
-        if (tf == null || !tf.getPath().equals(f.getAbsolutePath())) {
-          long startPos = skipToEnd ? f.length() : 0;
-          tf = openFile(f, headers, inode, startPos);
+      for (File f : taildir.getMatchingFiles()) {//返回匹配的文件集合
+        long inode = getInode(f);//文件的inode
+        TailFile tf = tailFiles.get(inode);//找到要读取的文件对象
+        if (tf == null || !tf.getPath().equals(f.getAbsolutePath())) {//说明文件没有读取过
+          long startPos = skipToEnd ? f.length() : 0;//设置从头开始读取还是从尾巴开始读取
+          tf = openFile(f, headers, inode, startPos);//组装成文件读取对象
         } else {
-          boolean updated = tf.getLastUpdated() < f.lastModified();
+          boolean updated = tf.getLastUpdated() < f.lastModified();//说明文件有更新
           if (updated) {
             if (tf.getRaf() == null) {
               tf = openFile(f, headers, inode, tf.getPos());
@@ -273,11 +286,13 @@ public class ReliableTaildirEventReader implements ReliableEventReader {
   }
 
 
+    //获取一个文件的inode
   private long getInode(File file) throws IOException {
     long inode = (long) Files.getAttribute(file.toPath(), "unix:ino");
     return inode;
   }
 
+    //打开一个文件
   private TailFile openFile(File file, Map<String, String> headers, long inode, long pos) {
     try {
       logger.info("Opening file: " + file + ", inode: " + inode + ", pos: " + pos);

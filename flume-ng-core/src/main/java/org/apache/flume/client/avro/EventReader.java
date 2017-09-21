@@ -40,6 +40,7 @@ public interface EventReader extends Closeable {
    * {@code null}, the input underlying input source is considered finished.
    * Note that this is allowed to block for indefinite amounts of time waiting
    * to generate a new line.
+   * 读取一行数据
    */
   public Event readEvent() throws IOException;
 
@@ -48,6 +49,7 @@ public interface EventReader extends Closeable {
    * less than n lines, the input underlying input source is considered
    * finished. Note that this is allowed to block for indefinite amounts of
    * time waiting to generate a new line.
+   * 读取多行数据
    */
   public List<Event> readEvents(int n) throws IOException;
 
