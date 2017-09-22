@@ -76,15 +76,18 @@ import org.apache.flume.instrumentation.ChannelCounter;
  * <p>
  * TODO
  * </p>
+ * 伪事务 内存级别的渠道
+ *
+ * 内存用一个队列去维护所有数据
  */
 public class PseudoTxnMemoryChannel extends AbstractChannel {
 
-  private static final Integer defaultCapacity = 50;
+  private static final Integer defaultCapacity = 50;//默认队列长度
   private static final Integer defaultKeepAlive = 3;
 
-  private BlockingQueue<Event> queue;
-  private Integer keepAlive;
-  private ChannelCounter channelCounter;
+  private BlockingQueue<Event> queue;//一个阻塞队列
+  private Integer keepAlive;//队列获取一个元素的时间
+  private ChannelCounter channelCounter;//计数器,用于统计
 
   @Override
   public void configure(Context context) {
@@ -108,9 +111,9 @@ public class PseudoTxnMemoryChannel extends AbstractChannel {
   @Override
   public void start() {
     channelCounter.start();
-    channelCounter.setChannelSize(queue.size());
+    channelCounter.setChannelSize(queue.size());//队列中现在有多少个元素了
     channelCounter.setChannelSize(
-            Long.valueOf(queue.size() + queue.remainingCapacity()));
+            Long.valueOf(queue.size() + queue.remainingCapacity()));//队列中现在已经有的元素+剩余元素,就是队列的总大小
     super.start();
   }
 
@@ -159,6 +162,7 @@ public class PseudoTxnMemoryChannel extends AbstractChannel {
    * <p>
    * A no-op transaction implementation that does nothing at all.
    * </p>
+   * 说明不需要事务
    */
   public static class NoOpTransaction implements Transaction {
 

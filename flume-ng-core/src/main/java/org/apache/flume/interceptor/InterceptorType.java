@@ -18,6 +18,7 @@
 
 package org.apache.flume.interceptor;
 
+//拦截器
 public enum InterceptorType {
 
   TIMESTAMP(org.apache.flume.interceptor.TimestampInterceptor.Builder.class),

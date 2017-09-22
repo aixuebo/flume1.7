@@ -34,14 +34,14 @@ import com.google.common.base.Preconditions;
  * implied thread-local semantics of the {@link Transaction} class,
  * which is required to extend {@link BasicTransactionSemantics}.
  * </p>
- * 线程安全的channel
+ * 线程安全的channel---并且支持事务
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable
 public abstract class BasicChannelSemantics extends AbstractChannel {
 
   private ThreadLocal<BasicTransactionSemantics> currentTransaction
-      = new ThreadLocal<BasicTransactionSemantics>();
+      = new ThreadLocal<BasicTransactionSemantics>();//每一个线程持有一个本地的事务对象
 
   private boolean initialized = false;
 
@@ -63,6 +63,7 @@ public abstract class BasicChannelSemantics extends AbstractChannel {
    * retrieved by <code>getTransaction</code> for the duration of that
    * transaction.
    * </p>
+   * 创建事务对象
    */
   protected abstract BasicTransactionSemantics createTransaction();
 
@@ -72,6 +73,7 @@ public abstract class BasicChannelSemantics extends AbstractChannel {
    * delegates the <code>put</code> to the thread's {@link
    * BasicTransactionSemantics} instance.
    * </p>
+   * 向事务中提交一个事件
    */
   @Override
   public void put(Event event) throws ChannelException {

@@ -33,6 +33,7 @@ import org.apache.flume.conf.channel.ChannelSelectorType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+//创建渠道选择器
 public class ChannelSelectorFactory {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(
@@ -42,7 +43,7 @@ public class ChannelSelectorFactory {
       Map<String, String> config) {
 
     ChannelSelector selector = getSelectorForType(config.get(
-        BasicConfigurationConstants.CONFIG_TYPE));
+        BasicConfigurationConstants.CONFIG_TYPE));//获取渠道选择器
 
     selector.setChannels(channels);
 
@@ -53,25 +54,27 @@ public class ChannelSelectorFactory {
     return selector;
   }
 
+    //创建一个渠道选择器
   public static ChannelSelector create(List<Channel> channels,
       ChannelSelectorConfiguration conf) {
     String type = ChannelSelectorType.REPLICATING.toString();
-    if (conf != null) {
+    if (conf != null) {//从配置中获取type类型
       type = conf.getType();
     }
-    ChannelSelector selector = getSelectorForType(type);
+    ChannelSelector selector = getSelectorForType(type);//返回类型
     selector.setChannels(channels);
     Configurables.configure(selector, conf);
     return selector;
   }
 
+    //参数是选择器类型,返回选择器
   private static ChannelSelector getSelectorForType(String type) {
     if (type == null || type.trim().length() == 0) {
       return new ReplicatingChannelSelector();
     }
 
-    String selectorClassName = type;
-    ChannelSelectorType  selectorType = ChannelSelectorType.OTHER;
+    String selectorClassName = type;//type类型默认可以填写的是自定义的class全路径
+    ChannelSelectorType  selectorType = ChannelSelectorType.OTHER;//默认的选择器类型
 
     try {
       selectorType = ChannelSelectorType.valueOf(type.toUpperCase(Locale.ENGLISH));
@@ -80,7 +83,7 @@ public class ChannelSelectorFactory {
     }
 
     if (!selectorType.equals(ChannelSelectorType.OTHER)) {
-      selectorClassName = selectorType.getChannelSelectorClassName();
+      selectorClassName = selectorType.getChannelSelectorClassName();//选择器对应的class
     }
 
     ChannelSelector selector = null;

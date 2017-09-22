@@ -45,6 +45,7 @@ import java.util.concurrent.TimeUnit;
  * Additionally, MemoryChannel should be used when a channel is required for
  * unit testing purposes.
  * </p>
+ * 事务级别的内存渠道
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable
@@ -62,7 +63,7 @@ public class MemoryChannel extends BasicChannelSemantics {
   private class MemoryTransaction extends BasicTransactionSemantics {
     private LinkedBlockingDeque<Event> takeList;
     private LinkedBlockingDeque<Event> putList;
-    private final ChannelCounter channelCounter;
+    private final ChannelCounter channelCounter;//计数器
     private int putByteCounter = 0;
     private int takeByteCounter = 0;
 
@@ -82,7 +83,7 @@ public class MemoryChannel extends BasicChannelSemantics {
         throw new ChannelException(
             "Put queue for MemoryTransaction of capacity " +
             putList.size() + " full, consider committing more frequently, " +
-            "increasing capacity or increasing thread count");
+            "increasing capacity or increasing thread count");//说明队列满了
       }
       putByteCounter += eventByteSize;
     }
@@ -90,7 +91,7 @@ public class MemoryChannel extends BasicChannelSemantics {
     @Override
     protected Event doTake() throws InterruptedException {
       channelCounter.incrementEventTakeAttemptCount();
-      if (takeList.remainingCapacity() == 0) {
+      if (takeList.remainingCapacity() == 0) {//说明没有内容可以被拿出去
         throw new ChannelException("Take list for MemoryTransaction, capacity " +
             takeList.size() + " full, consider committing more frequently, " +
             "increasing capacity, or increasing thread count");
@@ -200,8 +201,8 @@ public class MemoryChannel extends BasicChannelSemantics {
   private Semaphore queueStored;
 
   // maximum items in a transaction queue
-  private volatile Integer transCapacity;
-  private volatile int keepAlive;
+  private volatile Integer transCapacity;//一个事务需要的队列大小
+  private volatile int keepAlive;//从队列中take一个数据的超时时间
   private volatile int byteCapacity;
   private volatile int lastByteCapacity;
   private volatile int byteCapacityBufferPercentage;
@@ -366,6 +367,7 @@ public class MemoryChannel extends BasicChannelSemantics {
     return new MemoryTransaction(transCapacity, channelCounter);
   }
 
+    //使用body估算事件大小
   private long estimateEventSize(Event event) {
     byte[] body = event.getBody();
     if (body != null && body.length != 0) {

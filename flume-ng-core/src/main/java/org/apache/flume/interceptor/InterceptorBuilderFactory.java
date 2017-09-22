@@ -25,9 +25,11 @@ import org.apache.flume.interceptor.Interceptor.Builder;
 /**
  * Factory used to register instances of Interceptors & their builders,
  * as well as to instantiate the builders.
+ * 产生一个拦截器对象
  */
 public class InterceptorBuilderFactory {
 
+    //通过拦截器的type返回系统默认的拦截器
   private static Class<? extends Builder> lookup(String name) {
     try {
       return InterceptorType.valueOf(name.toUpperCase(Locale.ENGLISH)).getBuilderClass();
@@ -38,6 +40,7 @@ public class InterceptorBuilderFactory {
 
   /**
    * Instantiate specified class, either alias or fully-qualified class name.
+   * 通过自定义的拦截器的全路径,创建拦截器实例
    */
   public static Builder newInstance(String name)
       throws ClassNotFoundException, InstantiationException,

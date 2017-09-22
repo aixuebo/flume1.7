@@ -57,7 +57,7 @@ public class ChannelProcessor implements Configurable {
       ChannelProcessor.class);
 
   private final ChannelSelector selector;
-  private final InterceptorChain interceptorChain;
+  private final InterceptorChain interceptorChain;//关于该渠道的拦截器
 
   public ChannelProcessor(ChannelSelector selector) {
     this.selector = selector;
@@ -83,32 +83,33 @@ public class ChannelProcessor implements Configurable {
   }
 
   // WARNING: throws FlumeException (is that ok?)
+  //配置拦截器集合
   private void configureInterceptors(Context context) {
 
     List<Interceptor> interceptors = Lists.newLinkedList();
 
-    String interceptorListStr = context.getString("interceptors", "");
+    String interceptorListStr = context.getString("interceptors", "");//返回配置的拦截器集合,拦截器使用空格进行拆分,内容可以是自定义的全路径,也可以是默认的type名字
     if (interceptorListStr.isEmpty()) {
       return;
     }
     String[] interceptorNames = interceptorListStr.split("\\s+");
 
     Context interceptorContexts =
-        new Context(context.getSubProperties("interceptors."));
+        new Context(context.getSubProperties("interceptors."));//获取拦截器下面的属性集合
 
     // run through and instantiate all the interceptors specified in the Context
     InterceptorBuilderFactory factory = new InterceptorBuilderFactory();
-    for (String interceptorName : interceptorNames) {
+    for (String interceptorName : interceptorNames) {//循环每一个拦截器
       Context interceptorContext = new Context(
-          interceptorContexts.getSubProperties(interceptorName + "."));
-      String type = interceptorContext.getString("type");
+          interceptorContexts.getSubProperties(interceptorName + "."));//获取拦截器的配置信息
+      String type = interceptorContext.getString("type");//获取拦截器类型,或者全路径
       if (type == null) {
         LOG.error("Type not specified for interceptor " + interceptorName);
         throw new FlumeException("Interceptor.Type not specified for " +
             interceptorName);
       }
       try {
-        Interceptor.Builder builder = factory.newInstance(type);
+        Interceptor.Builder builder = factory.newInstance(type);//创建拦截器对象
         builder.configure(interceptorContext);
         interceptors.add(builder.build());
       } catch (ClassNotFoundException e) {
@@ -145,8 +146,9 @@ public class ChannelProcessor implements Configurable {
   public void processEventBatch(List<Event> events) {
     Preconditions.checkNotNull(events, "Event list must not be null");
 
-    events = interceptorChain.intercept(events);
+    events = interceptorChain.intercept(events);//先执行拦截器
 
+      //每一个渠道应该添加的事件集合
     Map<Channel, List<Event>> reqChannelQueue =
         new LinkedHashMap<Channel, List<Event>>();
 
@@ -178,8 +180,8 @@ public class ChannelProcessor implements Configurable {
       }
     }
 
-    // Process required channels
-    for (Channel reqChannel : reqChannelQueue.keySet()) {
+    // Process required channels 事务提交事件集合
+    for (Channel reqChannel : reqChannelQueue.keySet()) {//循环每一个渠道
       Transaction tx = reqChannel.getTransaction();
       Preconditions.checkNotNull(tx, "Transaction object must not be null");
       try {
@@ -249,16 +251,18 @@ public class ChannelProcessor implements Configurable {
    *
    * @param event The event to put into the configured channels.
    * @throws ChannelException when a write to a required channel fails.
+   * 处理该事件
    */
   public void processEvent(Event event) {
 
-    event = interceptorChain.intercept(event);
-    if (event == null) {
+    event = interceptorChain.intercept(event);//先对事件进行拦截
+    if (event == null) {//说明拦截后,该事件被忽略了
       return;
     }
 
     // Process required channels
-    List<Channel> requiredChannels = selector.getRequiredChannels(event);
+    List<Channel> requiredChannels = selector.getRequiredChannels(event);//返回必须的渠道
+      //事务提交到每一个渠道下
     for (Channel reqChannel : requiredChannels) {
       Transaction tx = reqChannel.getTransaction();
       Preconditions.checkNotNull(tx, "Transaction object must not be null");
@@ -287,7 +291,7 @@ public class ChannelProcessor implements Configurable {
     }
 
     // Process optional channels
-    List<Channel> optionalChannels = selector.getOptionalChannels(event);
+    List<Channel> optionalChannels = selector.getOptionalChannels(event);//返回可以选择的渠道
     for (Channel optChannel : optionalChannels) {
       Transaction tx = null;
       try {

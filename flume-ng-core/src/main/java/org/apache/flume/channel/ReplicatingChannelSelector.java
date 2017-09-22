@@ -30,6 +30,10 @@ import org.apache.flume.Event;
 /**
  * Replicating channel selector. This selector allows the event to be placed
  * in all the channels that the source is configured with.
+ * 复制渠道选择器
+ * 该选择器允许事件放置到source配置的所有的渠道中
+ *
+ * 即一个source可以分配到多个channel去
  */
 public class ReplicatingChannelSelector extends AbstractChannelSelector {
 
@@ -37,6 +41,8 @@ public class ReplicatingChannelSelector extends AbstractChannelSelector {
    * Configuration to set a subset of the channels as optional.
    */
   public static final String CONFIG_OPTIONAL = "optional";
+
+  //将所有的channel分成两个分类,一个是必须的,一个是optional可选择的
   List<Channel> requiredChannels = null;
   List<Channel> optionalChannels = new ArrayList<Channel>();
 
@@ -60,11 +66,11 @@ public class ReplicatingChannelSelector extends AbstractChannelSelector {
 
   @Override
   public void configure(Context context) {
-    String optionalList = context.getString(CONFIG_OPTIONAL);
+    String optionalList = context.getString(CONFIG_OPTIONAL);//空格拆分多个channel名字
     requiredChannels = new ArrayList<Channel>(getAllChannels());
     Map<String, Channel> channelNameMap = getChannelNameMap();
     if (optionalList != null && !optionalList.isEmpty()) {
-      for (String optional : optionalList.split("\\s+")) {
+      for (String optional : optionalList.split("\\s+")) {//循环每一个channel
         Channel optionalChannel = channelNameMap.get(optional);
         requiredChannels.remove(optionalChannel);
         if (!optionalChannels.contains(optionalChannel)) {

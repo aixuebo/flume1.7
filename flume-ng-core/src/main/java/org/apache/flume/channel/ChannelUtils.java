@@ -60,6 +60,7 @@ public class ChannelUtils {
    * A convenience method for single-event <code>put</code> transactions.
    * </p>
    * @see #transact(Channel,Callable)
+   * 一个简便的方法,为一个事件进行put事务操作
    */
   public static void put(final Channel channel, final Event event)
       throws ChannelException {
@@ -76,6 +77,7 @@ public class ChannelUtils {
    * A convenience method for multiple-event <code>put</code> transactions.
    * </p>
    * @see #transact(Channel,Callable)
+   *  一个简便的方法,为多个事件进行put事务操作
    */
   public static void put(final Channel channel, final Collection<Event> events)
       throws ChannelException {
@@ -95,6 +97,7 @@ public class ChannelUtils {
    * </p>
    * @return a single event, or null if the channel has none available
    * @see #transact(Channel,Callable)
+   *  一个简便的方法,为一个事件进行take事务操作
    */
   public static Event take(final Channel channel)
       throws ChannelException {
@@ -112,6 +115,7 @@ public class ChannelUtils {
    * </p>
    * @return a list of at most <code>max</code> events
    * @see #transact(Channel,Callable)
+   *  一个简便的方法,为多个事件进行take事务操作,最多获取max个数据
    */
   public static List<Event> take(final Channel channel, final int max)
       throws ChannelException {
@@ -140,6 +144,8 @@ public class ChannelUtils {
    * </p>
    * @see #transact(Channel,Callable)
    * @see Executors#callable(Runnable)
+   * 一个方便的方法,去事务执行一个线程,不要求有返回值
+   * 将事务中的事件都与一个channel关联
    */
   public static void transact(Channel channel, Runnable transactor)
       throws ChannelException {

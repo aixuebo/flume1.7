@@ -24,11 +24,13 @@ import org.apache.flume.annotations.InterfaceAudience;
 import org.apache.flume.annotations.InterfaceStability;
 import org.apache.flume.conf.Configurable;
 
+//表示一个拦截器
 @InterfaceAudience.Public
 @InterfaceStability.Stable
 public interface Interceptor {
   /**
    * Any initialization / startup needed by the Interceptor.
+   * 初始化该拦截器
    */
   public void initialize();
 
@@ -37,6 +39,7 @@ public interface Interceptor {
    * @param event Event to be intercepted
    * @return Original or modified event, or {@code null} if the Event
    * is to be dropped (i.e. filtered out).
+   * 拦截一个事件,返回一个新的事件
    */
   public Event intercept(Event event);
 
@@ -47,6 +50,7 @@ public interface Interceptor {
    * than the size of the input list (i.e. transformation and removal ONLY).
    * Also, this method MUST NOT return {@code null}. If all events are dropped,
    * then an empty List is returned.
+   * 拦截一组事件
    */
   public List<Event> intercept(List<Event> events);
 

@@ -28,11 +28,12 @@ import com.google.common.collect.Lists;
 /**
  * Implementation of Interceptor that calls a list of other Interceptors
  * serially.
+ * 实现拦截器集合--顺序的调用
  */
 public class InterceptorChain implements Interceptor {
 
   // list of interceptors that will be traversed, in order
-  private List<Interceptor> interceptors;
+  private List<Interceptor> interceptors;//按照顺序调用拦截器
 
   public InterceptorChain() {
     interceptors = Lists.newLinkedList();
@@ -42,9 +43,10 @@ public class InterceptorChain implements Interceptor {
     this.interceptors = interceptors;
   }
 
+    //拦截一个事件
   @Override
   public Event intercept(Event event) {
-    for (Interceptor interceptor : interceptors) {
+    for (Interceptor interceptor : interceptors) {//让每一个拦截器对事件进行处理,返回新的事件进入下一个拦截器
       if (event == null) {
         return null;
       }
@@ -53,6 +55,7 @@ public class InterceptorChain implements Interceptor {
     return event;
   }
 
+   //拦截一个事件集合
   @Override
   public List<Event> intercept(List<Event> events) {
     for (Interceptor interceptor : interceptors) {
@@ -66,6 +69,7 @@ public class InterceptorChain implements Interceptor {
     return events;
   }
 
+  //对每一个拦截器进行初始化
   @Override
   public void initialize() {
     Iterator<Interceptor> iter = interceptors.iterator();
@@ -75,6 +79,7 @@ public class InterceptorChain implements Interceptor {
     }
   }
 
+  //关闭每一个拦截器
   @Override
   public void close() {
     Iterator<Interceptor> iter = interceptors.iterator();

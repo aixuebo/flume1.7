@@ -23,19 +23,19 @@ import org.apache.commons.lang.ArrayUtils;
 public class ChannelCounter extends MonitoredCounterGroup implements
     ChannelCounterMBean {
 
-  private static final String COUNTER_CHANNEL_SIZE = "channel.current.size";
+  private static final String COUNTER_CHANNEL_SIZE = "channel.current.size";//渠道的队列里面有多少个具体的元素
 
   private static final String COUNTER_EVENT_PUT_ATTEMPT =
-      "channel.event.put.attempt";
+      "channel.event.put.attempt";//调用put的次数,即成功的和未成功的都算次数
 
   private static final String COUNTER_EVENT_TAKE_ATTEMPT =
-      "channel.event.take.attempt";
+      "channel.event.take.attempt";//调用take的次数,即成功的和未成功的都算次数
 
   private static final String COUNTER_EVENT_PUT_SUCCESS =
-      "channel.event.put.success";
+      "channel.event.put.success";//成功调用完成put的次数
 
   private static final String COUNTER_EVENT_TAKE_SUCCESS =
-      "channel.event.take.success";
+      "channel.event.take.success";//成功调用完成take的次数
 
   private static final String COUNTER_CHANNEL_CAPACITY =
           "channel.capacity";

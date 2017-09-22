@@ -20,11 +20,13 @@ package org.apache.flume.conf.channel;
 
 /**
  * Enumeration of built in channel types available in the system.
+ * 表示渠道类型
  */
 public enum ChannelType {
 
   /**
    * Place holder for custom channels not part of this enumeration.
+   * 表示用户自定义的channel
    */
   OTHER(null),
 

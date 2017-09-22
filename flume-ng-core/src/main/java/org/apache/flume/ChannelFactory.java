@@ -19,6 +19,7 @@ package org.apache.flume;
 
 public interface ChannelFactory {
 
+  //创建一个渠道
   Channel create(String name, String type) throws FlumeException;
 
   Class<? extends Channel> getClass(String type) throws FlumeException;

@@ -30,29 +30,32 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
 
+//默认如何创建一个渠道
 public class DefaultChannelFactory implements ChannelFactory {
 
   private static final Logger logger = LoggerFactory
       .getLogger(DefaultChannelFactory.class);
 
+    //知道渠道的name以及class全路径
   @Override
   public Channel create(String name, String type) throws FlumeException {
     Preconditions.checkNotNull(name, "name");
     Preconditions.checkNotNull(type, "type");
     logger.info("Creating instance of channel {} type {}", name, type);
-    Class<? extends Channel> channelClass = getClass(type);
+    Class<? extends Channel> channelClass = getClass(type);//渠道的class
     try {
-      return channelClass.newInstance();
+      return channelClass.newInstance();//创建实例
     } catch (Exception ex) {
       throw new FlumeException("Unable to create channel: " + name
           + ", type: " + type + ", class: " + channelClass.getName(), ex);
     }
   }
 
+    //获取渠道的对应的class全路径
   @SuppressWarnings("unchecked")
   @Override
   public Class<? extends Channel> getClass(String type) throws FlumeException {
-    String channelClassName = type;
+    String channelClassName = type;//默认type是class全路径
     ChannelType channelType = ChannelType.OTHER;
     try {
       channelType = ChannelType.valueOf(type.toUpperCase(Locale.ENGLISH));

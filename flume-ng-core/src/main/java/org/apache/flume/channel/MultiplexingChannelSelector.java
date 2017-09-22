@@ -30,13 +30,20 @@ import org.apache.flume.FlumeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * 复制渠道选择器
+ * 多工的选择器
+ */
 public class MultiplexingChannelSelector extends AbstractChannelSelector {
 
+  //事件中的key存储要选择的channel集合对应的key
   public static final String CONFIG_MULTIPLEX_HEADER_NAME = "header";
   public static final String DEFAULT_MULTIPLEX_HEADER =
       "flume.selector.header";
+
+
   public static final String CONFIG_PREFIX_MAPPING = "mapping.";
-  public static final String CONFIG_DEFAULT_CHANNEL = "default";
+  public static final String CONFIG_DEFAULT_CHANNEL = "default";//获取默认的channel集合
   public static final String CONFIG_PREFIX_OPTIONAL = "optional";
 
   @SuppressWarnings("unused")
@@ -47,10 +54,11 @@ public class MultiplexingChannelSelector extends AbstractChannelSelector {
 
   private String headerName;
 
-  private Map<String, List<Channel>> channelMapping;
+  private Map<String, List<Channel>> channelMapping;//添加到组和组下channel集合映射
   private Map<String, List<Channel>> optionalChannels;
   private List<Channel> defaultChannels;
 
+  //通过headerName的值查找对应的channel集合
   @Override
   public List<Channel> getRequiredChannels(Event event) {
     String headerValue = event.getHeaders().get(headerName);
@@ -69,6 +77,7 @@ public class MultiplexingChannelSelector extends AbstractChannelSelector {
     return channels;
   }
 
+   //通过headerName的值查找对应的channel集合
   @Override
   public List<Channel> getOptionalChannels(Event event) {
     String hdr = event.getHeaders().get(headerName);
@@ -82,16 +91,18 @@ public class MultiplexingChannelSelector extends AbstractChannelSelector {
 
   @Override
   public void configure(Context context) {
+
+    //获取事件中对应的channel选择的key
     this.headerName = context.getString(CONFIG_MULTIPLEX_HEADER_NAME,
         DEFAULT_MULTIPLEX_HEADER);
 
-    Map<String, Channel> channelNameMap = getChannelNameMap();
+    Map<String, Channel> channelNameMap = getChannelNameMap();//所有渠道组成的集合
 
     defaultChannels = getChannelListFromNames(
-        context.getString(CONFIG_DEFAULT_CHANNEL), channelNameMap);
+        context.getString(CONFIG_DEFAULT_CHANNEL), channelNameMap);//获取默认的channel集合
 
     Map<String, String> mapConfig =
-        context.getSubProperties(CONFIG_PREFIX_MAPPING);
+        context.getSubProperties(CONFIG_PREFIX_MAPPING);//获取mapping.后面的key=value信息,key是组name,value是组下的channel集合,用空格拆分
 
     channelMapping = new HashMap<String, List<Channel>>();
 
@@ -114,7 +125,7 @@ public class MultiplexingChannelSelector extends AbstractChannelSelector {
     //If no mapping is configured, it is ok.
     //All events will go to the default channel(s).
     Map<String, String> optionalChannelsMapping =
-        context.getSubProperties(CONFIG_PREFIX_OPTIONAL + ".");
+        context.getSubProperties(CONFIG_PREFIX_OPTIONAL + ".");//解析optional.
 
     optionalChannels = new HashMap<String, List<Channel>>();
     for (String hdr : optionalChannelsMapping.keySet()) {
@@ -132,7 +143,7 @@ public class MultiplexingChannelSelector extends AbstractChannelSelector {
         reqdChannels = defaultChannels;
       }
       for (Channel c : reqdChannels) {
-        if (confChannels.contains(c)) {
+        if (confChannels.contains(c)) {//取消必须的channel
           confChannels.remove(c);
         }
       }

@@ -55,8 +55,8 @@ public abstract class AbstractChannelSelector implements ChannelSelector {
   /**
    *
    * @return A map of name to channel instance.
+   * 所有渠道组成的集合
    */
-
   protected Map<String, Channel> getChannelNameMap() {
     Map<String, Channel> channelNameMap = new HashMap<String, Channel>();
     for (Channel ch : getAllChannels()) {
@@ -68,19 +68,21 @@ public abstract class AbstractChannelSelector implements ChannelSelector {
   /**
    * Given a list of channel names as space delimited string,
    * returns list of channels.
+   * 参数channel是要查询的channel的name集合,使用空格分割
    * @return List of {@linkplain Channel}s represented by the names.
+   * 查获
    */
   protected List<Channel> getChannelListFromNames(String channels,
           Map<String, Channel> channelNameMap) {
-    List<Channel> configuredChannels = new ArrayList<Channel>();
-    if (channels == null || channels.isEmpty()) {
+    List<Channel> configuredChannels = new ArrayList<Channel>();//最终存储找到的channel集合
+    if (channels == null || channels.isEmpty()) {//返回空集合
       return configuredChannels;
     }
     String[] chNames = channels.split(" ");
-    for (String name : chNames) {
-      Channel ch = channelNameMap.get(name);
+    for (String name : chNames) {//循环每一个要查找的channel
+      Channel ch = channelNameMap.get(name);//说明找到该channel了
       if (ch != null) {
-        configuredChannels.add(ch);
+        configuredChannels.add(ch);//添加到返回值
       } else {
         throw new FlumeException("Selector channel not found: "
                 + name);

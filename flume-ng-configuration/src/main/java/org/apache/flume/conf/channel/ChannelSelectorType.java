@@ -18,11 +18,13 @@ package org.apache.flume.conf.channel;
 
 /**
  * Enumeration of built in channel selector types available in the system.
+ * 选择器类型
  */
 public enum ChannelSelectorType {
 
   /**
    * Place holder for custom channel selectors not part of this enumeration.
+   * 没有class,说明用户会自定义class
    */
   OTHER(null),
 

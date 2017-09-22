@@ -34,7 +34,7 @@ public final class BasicConfigurationConstants {
   public static final String CONFIG_CHANNELS_PREFIX = CONFIG_CHANNELS + ".";
 
   public static final String CONFIG_CONFIG = "config";
-  public static final String CONFIG_TYPE = "type";
+  public static final String CONFIG_TYPE = "type";//渠道选择器的key
 
   private BasicConfigurationConstants() {
     // disable explicit object creation

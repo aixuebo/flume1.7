@@ -29,11 +29,13 @@ import org.apache.flume.conf.Configurable;
  * embody different policies that affect the choice of channels that a source
  * will push the incoming events to.
  * </p>
+ * 允许选择channel的子集,不同的实现方式,有不同的代理,去将source推送到多个channel中
  */
 public interface ChannelSelector extends NamedComponent, Configurable {
 
   /**
    * @param channels all channels the selector could select from.
+   * 所有可以选择的渠道集合
    */
   public void setChannels(List<Channel> channels);
 
@@ -41,6 +43,7 @@ public interface ChannelSelector extends NamedComponent, Configurable {
    * Returns a list of required channels. A failure in writing the event to
    * these channels must be communicated back to the source that received this
    * event.
+   * 返回一个必须的渠道集合,在写入事件的过程中,渠道接收到事件后,必须传达回到source
    * @param event
    * @return the list of required channels that this selector has selected for
    * the given event.
