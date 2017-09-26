@@ -69,11 +69,12 @@ import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
  * should be called. After
  * the operation and any additional modifications of the
  * FlumeEventQueue, the Log.unlockShared method should be called.
+ * 用于管理若干个日志文件,即是日志文件的管理者
  */
 @InterfaceAudience.Private
 @InterfaceStability.Unstable
 public class Log {
-  public static final String PREFIX = "log-";
+  public static final String PREFIX = "log-";//文件名字前缀,后面跟一个int数值
   private static final Logger LOGGER = LoggerFactory.getLogger(Log.class);
   private static final int MIN_NUM_LOGS = 2;
   public static final String FILE_LOCK = "in_use.lock";
@@ -86,7 +87,7 @@ public class Log {
   private final File backupCheckpointDir;
   private final File[] logDirs;
   private final int queueCapacity;
-  private final AtomicReferenceArray<LogFile.Writer> logFiles;
+  private final AtomicReferenceArray<LogFile.Writer> logFiles;//所有的日志文件
 
   private final ScheduledExecutorService workerExecutor;
 
@@ -95,7 +96,7 @@ public class Log {
   private long checkpointInterval;
   private long maxFileSize;
   private final boolean useFastReplay;
-  private final long minimumRequiredSpace;
+  private final long minimumRequiredSpace;//要求最少的剩余空间
   private final Map<String, FileLock> locks;
   private final ReentrantReadWriteLock checkpointLock =
       new ReentrantReadWriteLock(true);
@@ -374,7 +375,7 @@ public class Log {
   /**
    * Read checkpoint and data files from disk replaying them to the state
    * directly before the shutdown or crash.
-   *
+   * 从磁盘上读取checkpoint的数据文件,恢复到shutdown或者crash之前的状态
    * @throws IOException
    */
   void replay() throws IOException {
@@ -624,7 +625,7 @@ public class Log {
    * Log a put of an event
    * <p>
    * Synchronization not required as this method is atomic
-   *
+   * 描述哪个事务提交了一个事件
    * @param transactionID
    * @param event
    * @return
@@ -636,18 +637,18 @@ public class Log {
     FlumeEvent flumeEvent = new FlumeEvent(
         event.getHeaders(), event.getBody());
     Put put = new Put(transactionID, WriteOrderOracle.next(), flumeEvent);
-    ByteBuffer buffer = TransactionEventRecord.toByteBuffer(put);
-    int logFileIndex = nextLogWriter(transactionID);
-    long usableSpace = logFiles.get(logFileIndex).getUsableSpace();
-    long requiredSpace = minimumRequiredSpace + buffer.limit();
-    if (usableSpace <= requiredSpace) {
+    ByteBuffer buffer = TransactionEventRecord.toByteBuffer(put);//将对象转换成字节数组
+    int logFileIndex = nextLogWriter(transactionID);//该事务分配到哪个文件中
+    long usableSpace = logFiles.get(logFileIndex).getUsableSpace();//该文件的存储空间
+    long requiredSpace = minimumRequiredSpace + buffer.limit();//要求的空间
+    if (usableSpace <= requiredSpace) {//说明空间不足
       throw new IOException("Usable space exhausted, only " + usableSpace +
           " bytes remaining, required " + requiredSpace + " bytes");
     }
     boolean error = true;
     try {
       try {
-        FlumeEventPointer ptr = logFiles.get(logFileIndex).put(buffer);
+        FlumeEventPointer ptr = logFiles.get(logFileIndex).put(buffer);//真正向日志文件中写入字节内容
         error = false;
         return ptr;
       } catch (LogFileRetryableIOException e) {
@@ -930,7 +931,7 @@ public class Log {
 
   /**
    * Atomic so not synchronization required.
-   *
+   * 该事务分配到哪个文件中
    * @return
    */
   private int nextLogWriter(long transactionID) {
@@ -1205,6 +1206,7 @@ public class Log {
     lock = null;
   }
 
+    //后台线程,专门运行writeCheckpoint方法
   static class BackgroundWorker implements Runnable {
     private static final Logger LOG = LoggerFactory
         .getLogger(BackgroundWorker.class);

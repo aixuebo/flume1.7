@@ -28,11 +28,13 @@ import com.google.common.collect.Lists;
 
 public class LogUtils {
 
+    //匹配符合的文件名字,即前缀+数字
   private static final Pattern pattern =
           Pattern.compile("^" + Log.PREFIX + "\\d+$");
 
   /**
    * Sort a list of files by the number after Log.PREFIX.
+   * 文件按照名字进行排序
    */
   static void sort(List<File> logs) {
     Collections.sort(logs, new Comparator<File>() {
@@ -51,19 +53,20 @@ public class LogUtils {
   }
   /**
    * Get the id after the Log.PREFIX
+   * 文件ID是文件名字后面跟着的数字
    */
   static int getIDForFile(File file) {
     return Integer.parseInt(file.getName().substring(Log.PREFIX.length()));
   }
   /**
    * Find all log files within a directory
-   *
+   * 返回目录下所有的日志文件集合
    * @param logDir directory to search
    * @return List of data files within logDir
    */
   static List<File> getLogs(File logDir) {
     List<File> result = Lists.newArrayList();
-    File[] files = logDir.listFiles();
+    File[] files = logDir.listFiles();//返回目录下的文件集合
     if (files == null) {
       String msg = logDir + ".listFiles() returned null: ";
       msg += "File = " + logDir.isFile() + ", ";
@@ -71,7 +74,7 @@ public class LogUtils {
       msg += "Writable = " + logDir.canWrite();
       throw new IllegalStateException(msg);
     }
-    for (File file : files) {
+    for (File file : files) {//找到匹配正则表达式的日志文件
       String name = file.getName();
       if (pattern.matcher(name).matches()) {
         result.add(file);

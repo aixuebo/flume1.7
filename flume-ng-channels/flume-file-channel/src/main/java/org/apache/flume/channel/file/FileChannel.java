@@ -71,6 +71,8 @@ import java.util.concurrent.TimeUnit;
  * In cases where a Channel is required by instantiated by user-developers
  * {@link org.apache.flume.channel.MemoryChannel} should be used.
  * </p>
+ *
+ *  FileChannel 保证了一个事务提交commit后,当服务器断电或者crash时,commit的数据不会被丢失
  */
 @InterfaceAudience.Private
 @InterfaceStability.Stable
@@ -90,7 +92,7 @@ public class FileChannel extends BasicChannelSemantics {
   private File[] dataDirs;
   private Log log;
   private volatile boolean open;
-  private volatile Throwable startupError;
+  private volatile Throwable startupError;//开始初始化的时候出现的异常
   private Semaphore queueRemaining;
   private final ThreadLocal<FileBackedTransaction> transactions =
       new ThreadLocal<FileBackedTransaction>();
@@ -440,7 +442,7 @@ public class FileChannel extends BasicChannelSemantics {
 
       /**
        *
-       * @param log
+       * @param log 操作同一个Log对象
        * @param transactionID 事务的ID
        * @param transCapacity 事务中的队列长度,能容纳put和take元素的数量
        * @param keepAlive

@@ -39,17 +39,18 @@ public class DirectMemoryUtils {
   private static final String MAX_DIRECT_MEMORY_PARAM =
       "-XX:MaxDirectMemorySize=";
   private static final long DEFAULT_SIZE = getDefaultDirectMemorySize();
-  private static final AtomicInteger allocated = new AtomicInteger(0);
+  private static final AtomicInteger allocated = new AtomicInteger(0);//当前已经分配的内存数
 
+   //先分配一定空间
   public static ByteBuffer allocate(int size) {
     Preconditions.checkArgument(size > 0, "Size must be greater than zero");
-    long maxDirectMemory = getDirectMemorySize();
+    long maxDirectMemory = getDirectMemorySize();//获取最大可以使用多少内存
     long allocatedCurrently = allocated.get();
     LOG.info("Direct Memory Allocation: " +
-        " Allocation = " + size +
-        ", Allocated = " + allocatedCurrently +
-        ", MaxDirectMemorySize = " + maxDirectMemory +
-        ", Remaining = " + Math.max(0,(maxDirectMemory - allocatedCurrently)));
+        " Allocation = " + size + //等待分配数量
+        ", Allocated = " + allocatedCurrently +//已经分配数量
+        ", MaxDirectMemorySize = " + maxDirectMemory + //最多分配数
+        ", Remaining = " + Math.max(0,(maxDirectMemory - allocatedCurrently)));//剩余多少
     try {
       ByteBuffer result = ByteBuffer.allocateDirect(size);
       allocated.addAndGet(size);
@@ -60,6 +61,7 @@ public class DirectMemoryUtils {
       throw error;
     }
   }
+
   public static void clean(ByteBuffer buffer) throws Exception {
     Preconditions.checkArgument(buffer.isDirect(),
         "buffer isn't direct!");
@@ -69,7 +71,7 @@ public class DirectMemoryUtils {
     Method cleanMethod = cleaner.getClass().getMethod("clean");
     cleanMethod.setAccessible(true);
     cleanMethod.invoke(cleaner);
-    allocated.getAndAdd(-buffer.capacity());
+    allocated.getAndAdd(-buffer.capacity());//减少一部分空间
     long maxDirectMemory = getDirectMemorySize();
     LOG.info("Direct Memory Deallocation: " +
         ", Allocated = " + allocated.get() +
@@ -77,15 +79,19 @@ public class DirectMemoryUtils {
         ", Remaining = " + Math.max(0, (maxDirectMemory - allocated.get())));
 
   }
+
+    //返回可以使用多大内存
+    //返回配置的-XX:MaxDirectMemorySize=属性对应的数据,返回值的单位是byte
   public static long getDirectMemorySize() {
     RuntimeMXBean RuntimemxBean = ManagementFactory.getRuntimeMXBean();
-    List<String> arguments = Lists.reverse(RuntimemxBean.getInputArguments());
-    long multiplier = 1; //for the byte case.
+    List<String> arguments = Lists.reverse(RuntimemxBean.getInputArguments());//获取输入的系统参数集合
+    long multiplier = 1; //for the byte case.默认单位是byte
     for (String s : arguments) {
       if (s.contains(MAX_DIRECT_MEMORY_PARAM)) {
         String memSize = s.toLowerCase(Locale.ENGLISH)
             .replace(MAX_DIRECT_MEMORY_PARAM.toLowerCase(Locale.ENGLISH), "").trim();
 
+        //将单位转换成byte
         if (memSize.contains("k")) {
           multiplier = 1024;
         } else if (memSize.contains("m")) {
@@ -93,13 +99,15 @@ public class DirectMemoryUtils {
         } else if (memSize.contains("g")) {
           multiplier = 1073741824;
         }
-        memSize = memSize.replaceAll("[^\\d]", "");
+        memSize = memSize.replaceAll("[^\\d]", "");//非数字转换成"",即仅剩下数字
         long retValue = Long.parseLong(memSize);
         return retValue * multiplier;
       }
     }
     return DEFAULT_SIZE;
   }
+
+  //获取默认大小--返回内存的最大使用量
   private static long getDefaultDirectMemorySize() {
     try {
       Class<?> VM = Class.forName("sun.misc.VM");

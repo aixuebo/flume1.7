@@ -23,11 +23,13 @@ package org.apache.flume.channel.file;
  * Pointer to an Event on disk. This is represented in memory
  * as a long. As such there are methods to convert from this
  * object to a long and from a long to this object.
+ * 表示一个事件存储在哪一个文件中,以及该文件的offset偏移量
  */
 class FlumeEventPointer {
   private final int fileID;
   private final int offset;
 
+  //参数是<LogFileID文件ID,该记录存储该文件的偏移量>
   FlumeEventPointer(int fileID, int offset) {
     this.fileID = fileID;
     this.offset = offset;

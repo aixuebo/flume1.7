@@ -46,6 +46,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+//代表一个具体的日志文件
 @InterfaceAudience.Private
 @InterfaceStability.Unstable
 public abstract class LogFile {
@@ -56,19 +57,22 @@ public abstract class LogFile {
    * This class preallocates the data files 1MB at time to avoid
    * the updating of the inode on each write and to avoid the disk
    * filling up during a write. It's also faster, so there.
+   * 先优先分配1M内存,避免每一次writer的时候都更新inode,以及避免磁盘在写入的时候被充满,
+   * 这个分配内存的速度是很快的
    */
   private static final ByteBuffer FILL = DirectMemoryUtils.allocate(1024 * 1024);
 
-  public static final byte OP_RECORD = Byte.MAX_VALUE;
-  public static final byte OP_NOOP = (Byte.MAX_VALUE + Byte.MIN_VALUE) / 2;
-  public static final byte OP_EOF = Byte.MIN_VALUE;
+  public static final byte OP_RECORD = Byte.MAX_VALUE;//说明是一条数据
+  public static final byte OP_NOOP = (Byte.MAX_VALUE + Byte.MIN_VALUE) / 2;//说明是没有任何操作的情况
+  public static final byte OP_EOF = Byte.MIN_VALUE;//说明是结尾
 
   static {
-    for (int i = 0; i < FILL.capacity(); i++) {
+    for (int i = 0; i < FILL.capacity(); i++) {//先内存填充结尾
       FILL.put(OP_EOF);
     }
   }
 
+    //每一个记录存储是一个length的int+数据length的内容,因此跳过该offset位置开始的记录
   protected static void skipRecord(RandomAccessFile fileHandle,
                                    int offset) throws IOException {
     fileHandle.seek(offset);
@@ -77,9 +81,9 @@ public abstract class LogFile {
   }
 
   abstract static class MetaDataWriter {
-    private final File file;
-    private final int logFileID;
-    private final RandomAccessFile writeFileHandle;
+    private final File file;//具体一个文件
+    private final int logFileID;//文件对应的序号
+    private final RandomAccessFile writeFileHandle;//操作文件的对象
 
     private long lastCheckpointOffset;
     private long lastCheckpointWriteOrderID;
@@ -168,11 +172,11 @@ public abstract class LogFile {
   }
 
   abstract static class Writer {
-    private final int logFileID;
-    private final File file;
-    private final long maxFileSize;
-    private final RandomAccessFile writeFileHandle;
-    private final FileChannel writeFileChannel;
+    private final int logFileID;//文件对象的唯一ID序号
+    private final File file;//文件对象
+    private final long maxFileSize;//文件的最大大小
+    private final RandomAccessFile writeFileHandle;//如何处理该文件
+    private final FileChannel writeFileChannel;//文件的channel
     private final CipherProvider.Encryptor encryptor;
     private final CachedFSUsableSpace usableSpace;
     private volatile boolean open;
@@ -273,7 +277,7 @@ public abstract class LogFile {
       if (encryptor != null) {
         buffer = ByteBuffer.wrap(encryptor.encrypt(buffer.array()));
       }
-      Pair<Integer, Integer> pair = write(buffer);
+      Pair<Integer, Integer> pair = write(buffer);//返回<LogFileID文件ID,该记录存储该文件的偏移量>
       return new FlumeEventPointer(pair.getLeft(), pair.getRight());
     }
 
@@ -300,28 +304,29 @@ public abstract class LogFile {
       lastCommitPosition = position();
     }
 
+      //返回<LogFileID文件ID,该记录存储该文件的偏移量>
     private Pair<Integer, Integer> write(ByteBuffer buffer)
         throws IOException {
       if (!isOpen()) {
         throw new LogFileRetryableIOException("File closed " + file);
       }
       long length = position();
-      long expectedLength = length + (long) buffer.limit();
-      if (expectedLength > maxFileSize) {
+      long expectedLength = length + (long) buffer.limit();//期待的最终大小
+      if (expectedLength > maxFileSize) {//看是否超出文件的容量
         throw new LogFileRetryableIOException(expectedLength + " > " +
             maxFileSize);
       }
-      int offset = (int) length;
+      int offset = (int) length;//该行记录在文件的偏移量
       Preconditions.checkState(offset >= 0, String.valueOf(offset));
       // OP_RECORD + size + buffer
-      int recordLength = 1 + (int) Serialization.SIZE_OF_INT + buffer.limit();
+      int recordLength = 1 + (int) Serialization.SIZE_OF_INT + buffer.limit();//记录长度,需要一个int存储OP_RECORD
       usableSpace.decrement(recordLength);
       preallocate(recordLength);
       ByteBuffer toWrite = ByteBuffer.allocate(recordLength);
       toWrite.put(OP_RECORD);
       writeDelimitedBuffer(toWrite, buffer);
       toWrite.position(0);
-      int wrote = getFileChannel().write(toWrite);
+      int wrote = getFileChannel().write(toWrite);//将数据内容写入到文件中,返回写入多少个字节
       Preconditions.checkState(wrote == toWrite.limit());
       return Pair.of(getLogFileID(), offset);
     }
