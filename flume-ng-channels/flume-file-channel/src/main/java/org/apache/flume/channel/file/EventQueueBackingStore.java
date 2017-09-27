@@ -22,13 +22,14 @@ import java.io.IOException;
 
 import com.google.common.collect.ImmutableSortedSet;
 
+//用于存储事件的队列
 abstract class EventQueueBackingStore {
   protected static final int EMPTY = 0;
   private int queueSize;
   private int queueHead;
   private long logWriteOrderID;
-  private final int capacity;
-  private final String name;
+  private final int capacity;//队列容量
+  private final String name;//队列名字
   public static final String BACKUP_COMPLETE_FILENAME = "backupComplete";
   protected Boolean slowdownBackup = false;
 

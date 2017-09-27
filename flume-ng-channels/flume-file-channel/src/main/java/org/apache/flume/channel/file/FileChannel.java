@@ -501,7 +501,7 @@ public class FileChannel extends BasicChannelSemantics {
         FlumeEventPointer ptr = log.put(transactionID, event);
         Preconditions.checkState(putList.offer(ptr), "putList offer failed "
             + channelNameDescriptor);//将成功添加的元素返回值添加到队列中
-        queue.addWithoutCommit(ptr, transactionID);
+        queue.addWithoutCommit(ptr, transactionID);//记录到队列中
         success = true;
       } catch (IOException e) {
         throw new ChannelException("Put failed due to IO error "

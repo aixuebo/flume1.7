@@ -47,7 +47,7 @@ abstract class EventQueueBackingStoreFile extends EventQueueBackingStore {
   private static final Logger LOG = LoggerFactory.getLogger(EventQueueBackingStoreFile.class);
   private static final int MAX_ALLOC_BUFFER_SIZE = 2 * 1024 * 1024; // 2MB
   protected static final int HEADER_SIZE = 1029;
-  protected static final int INDEX_VERSION = 0;
+  protected static final int INDEX_VERSION = 0;//版本号的位置
   protected static final int INDEX_WRITE_ORDER_ID = 1;
   protected static final int INDEX_CHECKPOINT_MARKER = 4;
   protected static final int CHECKPOINT_COMPLETE = 0;
@@ -55,12 +55,14 @@ abstract class EventQueueBackingStoreFile extends EventQueueBackingStore {
 
   protected static final String COMPRESSED_FILE_EXTENSION = ".snappy";
 
-  protected LongBuffer elementsBuffer;
+  protected LongBuffer elementsBuffer;//checkpointFile文件存储的都是long内容.因此转换成long流
   protected final Map<Integer, Long> overwriteMap = new HashMap<Integer, Long>();
   protected final Map<Integer, AtomicInteger> logFileIDReferenceCounts = Maps.newHashMap();
   protected final MappedByteBuffer mappedBuffer;
-  protected final RandomAccessFile checkpointFileHandle;
-  protected final File checkpointFile;
+
+  protected final RandomAccessFile checkpointFileHandle;//处理checkpointFile文件的流
+  protected final File checkpointFile;//checkpointFile文件
+
   private final Semaphore backupCompletedSema = new Semaphore(1);
   protected final boolean shouldBackup;
   protected final boolean compressBackup;
@@ -84,8 +86,9 @@ abstract class EventQueueBackingStoreFile extends EventQueueBackingStore {
     this.backupDir = checkpointBackupDir;
     checkpointFileHandle = new RandomAccessFile(checkpointFile, "rw");
     long totalBytes = (capacity + HEADER_SIZE) * Serialization.SIZE_OF_LONG;
-    if (checkpointFileHandle.length() == 0) {
+    if (checkpointFileHandle.length() == 0) {//说明第一次创建该文件
       allocate(checkpointFile, totalBytes);
+      //写入version版本号
       checkpointFileHandle.seek(INDEX_VERSION * Serialization.SIZE_OF_LONG);
       checkpointFileHandle.writeLong(getVersion());
       checkpointFileHandle.getChannel().force(true);
@@ -100,11 +103,13 @@ abstract class EventQueueBackingStoreFile extends EventQueueBackingStore {
           " capacity.";
       throw new BadCheckpointException(msg);
     }
+
+      //将checkpointFile文件转换成内存流
     mappedBuffer = checkpointFileHandle.getChannel().map(MapMode.READ_WRITE, 0,
         checkpointFile.length());
-    elementsBuffer = mappedBuffer.asLongBuffer();
+    elementsBuffer = mappedBuffer.asLongBuffer();//转换成long流
 
-    long version = elementsBuffer.get(INDEX_VERSION);
+    long version = elementsBuffer.get(INDEX_VERSION);//获取版本号
     if (version != (long) getVersion()) {
       throw new BadCheckpointException("Invalid version: " + version + " " +
           name + ", expected " + getVersion());

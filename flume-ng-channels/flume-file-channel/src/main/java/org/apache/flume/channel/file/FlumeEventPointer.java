@@ -52,6 +52,7 @@ class FlumeEventPointer {
     return offset;
   }
 
+  //将文件ID以及位置偏移量转换成一个long
   public long toLong() {
     long result = fileID;
     result = (long)fileID << 32;
@@ -94,6 +95,7 @@ class FlumeEventPointer {
     return "FlumeEventPointer [fileID=" + fileID + ", offset=" + offset + "]";
   }
 
+    //通过long类型的还原文件ID以及位置偏移量
   public static FlumeEventPointer fromLong(long value) {
     int fileID = (int)(value >>> 32);
     int offset = (int)value;

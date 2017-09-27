@@ -45,25 +45,32 @@ import java.util.TreeSet;
 /**
  * Queue of events in the channel. This queue stores only
  * {@link FlumeEventPointer} objects which are represented
- * as 8 byte longs internally. Additionally the queue itself
+ * as 8 byte longs internally.
+ *
+ * 事件的队列,该队列只是存储每一个事件存储在哪个文件以及对应文件的offset,即使用一个long代替。
+ *
+ * Additionally the queue itself
  * of longs is stored as a memory mapped file with a fixed
  * header and circular queue semantics. The header of the queue
  * contains the timestamp of last sync, the queue size and
  * the head position.
+ * 另外这个队列本身存储在内存映射文件中，该队列本身是一个循环利用的队列。
+ *
+ * 队列的头包含最后同步的时间戳,队列的size以及头的位置
  */
 final class FlumeEventQueue {
   private static final Logger LOG = LoggerFactory
       .getLogger(FlumeEventQueue.class);
   private static final int EMPTY = 0;
-  private final EventQueueBackingStore backingStore;
-  private final String channelNameDescriptor;
-  private final InflightEventWrapper inflightTakes;
-  private final InflightEventWrapper inflightPuts;
+  private final EventQueueBackingStore backingStore;//数据如何存储
+  private final String channelNameDescriptor;//渠道的描述
+  private final InflightEventWrapper inflightTakes;//用于存储正在take操作的数据
+  private final InflightEventWrapper inflightPuts;//用于存储正在put操作的数据
   private long searchTime = 0;
   private long searchCount = 0;
   private long copyTime = 0;
   private long copyCount = 0;
-  private DB db;
+  private DB db;//数据库对象
   private Set<Long> queueSet;
 
   /**
@@ -116,6 +123,7 @@ final class FlumeEventQueue {
         + " took " + (System.currentTimeMillis() - start));
   }
 
+  //反序列化
   SetMultimap<Long, Long> deserializeInflightPuts()
       throws IOException, BadCheckpointException {
     return inflightPuts.deserialize();
@@ -436,16 +444,31 @@ final class FlumeEventQueue {
    * A representation of in flight events which have not yet been committed.
    * None of the methods are thread safe, and should be called from thread
    * safe methods only.
+   * 代表正在处理中的事件,即此时事件尚未被提交
+   * 该类的方法都不是线程安全的,因此要确保线程安全的时候去调用
+   *
+   *
+   * 数据序列化内容格式:
+   * 16个字节的校验和
+   * long:事务ID
+   * long:事务ID下有多少条数据
+   * n个long:即每一个具体的数据--每一个long表示文件的ID以及offset
+   * 循环每一个事务ID。。。
+   *
    */
   class InflightEventWrapper {
+
+    //key是事务ID,value一个Long类型的集合,每一个long表示事件所在的文件ID以及offset偏移量组成的long
     private SetMultimap<Long, Long> inflightEvents = HashMultimap.create();
     // Both these are volatile for safe publication, they are never accessed by
     // more than 1 thread at a time.
     private volatile RandomAccessFile file;
     private volatile java.nio.channels.FileChannel fileChannel;
-    private final MessageDigest digest;
+    private final MessageDigest digest;//MD5算法
     private final File inflightEventsFile;
-    private volatile boolean syncRequired = false;
+    private volatile boolean syncRequired = false;//true表示需要去同步数据了,数据已经脏了
+
+      //key是事务ID,value是一个Long类型的集合,每一个long表示该事务所在的文件ID
     private SetMultimap<Long, Integer> inflightFileIDs = HashMultimap.create();
 
     public InflightEventWrapper(File inflightEventsFile) throws Exception {
@@ -462,7 +485,7 @@ final class FlumeEventQueue {
 
     /**
      * Complete the transaction, and remove all events from inflight list.
-     *
+     * 说明一个事务已经完成,则清理处理中的数据
      * @param transactionID
      */
     public boolean completeTransaction(Long transactionID) {
@@ -477,7 +500,7 @@ final class FlumeEventQueue {
 
     /**
      * Add an event pointer to the inflights list.
-     *
+     * 添加一个事件
      * @param transactionID
      * @param pointer
      */
@@ -490,12 +513,12 @@ final class FlumeEventQueue {
 
     /**
      * Serialize the set of in flights into a byte longBuffer.
-     *
+     * 将在处理中的数据组装到longBuffer中,即都是long类型的
      * @return Returns the checksum of the buffer that is being
      * asynchronously written to disk.
      */
     public void serializeAndWrite() throws Exception {
-      Collection<Long> values = inflightEvents.values();
+      Collection<Long> values = inflightEvents.values();//处理中的数据集合
       if (!fileChannel.isOpen()) {
         file = new RandomAccessFile(inflightEventsFile, "rw");
         fileChannel = file.getChannel();
@@ -509,10 +532,11 @@ final class FlumeEventQueue {
       //transactionid numberofeventsforthistxn listofeventpointers
 
       try {
+        //期望的文件大小,因为一个long是由文件ID和offset组成的,因此一个long可以产生2个int
         int expectedFileSize = (((inflightEvents.keySet().size() * 2) //for transactionIDs and
-                                                                      //events per txn ID
-            + values.size()) * 8) //Event pointers
-            + 16; //Checksum
+                                                                      //events per txn ID //此时表示有多少个事务,以及每一个事务有多少个元素,因此有多少个事务,就需要2倍的数据字节存储,比如有10个事务,那么就需要记录10个事务ID以及每一个事务下有多少个元素
+            + values.size()) * 8) //Event pointers,values.size()表示有多少long值,即具体的long值....*8表示每一个数据都是用8个byte表示,因此就是总字节数
+            + 16; //Checksum 校验和
         //There is no real need of filling the channel with 0s, since we
         //will write the exact number of bytes as expected file size.
         file.setLength(expectedFileSize);
@@ -520,25 +544,25 @@ final class FlumeEventQueue {
             "Expected File size of inflight events file does not match the "
                 + "current file size. Checkpoint is incomplete.");
         file.seek(0);
-        final ByteBuffer buffer = ByteBuffer.allocate(expectedFileSize);
+        final ByteBuffer buffer = ByteBuffer.allocate(expectedFileSize);//分配内存
         LongBuffer longBuffer = buffer.asLongBuffer();
-        for (Long txnID : inflightEvents.keySet()) {
-          Set<Long> pointers = inflightEvents.get(txnID);
-          longBuffer.put(txnID);
-          longBuffer.put((long) pointers.size());
+        for (Long txnID : inflightEvents.keySet()) {//循环事务ID
+          Set<Long> pointers = inflightEvents.get(txnID);//返回该事务对应的所有value集合
+          longBuffer.put(txnID);//存储事务ID
+          longBuffer.put((long) pointers.size());//事务下的数据size
           LOG.debug("Number of events inserted into "
               + "inflights file: " + String.valueOf(pointers.size())
               + " file: " + inflightEventsFile.getCanonicalPath());
           long[] written = ArrayUtils.toPrimitive(
               pointers.toArray(new Long[0]));
-          longBuffer.put(written);
+          longBuffer.put(written);//写入该事务下所有的value
         }
         byte[] checksum = digest.digest(buffer.array());
-        file.write(checksum);
+        file.write(checksum);//先写入校验和
         buffer.position(0);
         fileChannel.write(buffer);
         fileChannel.force(true);
-        syncRequired = false;
+        syncRequired = false;//同步完成
       } catch (IOException ex) {
         LOG.error("Error while writing checkpoint to disk.", ex);
         throw ex;
@@ -551,6 +575,7 @@ final class FlumeEventQueue {
      * of transactionIDs to events that were inflight.
      *
      * @return - map of inflight events per txnID.
+     * 反序列化
      */
     public SetMultimap<Long, Long> deserialize()
         throws IOException, BadCheckpointException {
@@ -564,11 +589,11 @@ final class FlumeEventQueue {
       }
       file.seek(0);
       byte[] checksum = new byte[16];
-      file.read(checksum);
+      file.read(checksum);//读取校验和--前16个字节
       ByteBuffer buffer = ByteBuffer.allocate(
           (int) (file.length() - file.getFilePointer()));
-      fileChannel.read(buffer);
-      byte[] fileChecksum = digest.digest(buffer.array());
+      fileChannel.read(buffer);//读取数据内容
+      byte[] fileChecksum = digest.digest(buffer.array());//查看校验和是否正确
       if (!Arrays.equals(checksum, fileChecksum)) {
         throw new BadCheckpointException("Checksum of inflights file differs"
             + " from the checksum expected.");
@@ -577,9 +602,9 @@ final class FlumeEventQueue {
       LongBuffer longBuffer = buffer.asLongBuffer();
       try {
         while (true) {
-          long txnID = longBuffer.get();
-          int numEvents = (int) (longBuffer.get());
-          for (int i = 0; i < numEvents; i++) {
+          long txnID = longBuffer.get();//事务ID
+          int numEvents = (int) (longBuffer.get());//事务ID有多少条数据
+          for (int i = 0; i < numEvents; i++) {//还原每一条数据
             long val = longBuffer.get();
             inflights.put(txnID, val);
           }
