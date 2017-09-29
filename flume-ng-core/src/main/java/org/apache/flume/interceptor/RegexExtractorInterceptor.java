@@ -58,9 +58,12 @@ import com.google.common.collect.Lists;
  * <p>
  * agent.sources.r1.interceptors.i1.regex = (WARNING)|(ERROR)|(FATAL)
  * <p>
- * agent.sources.r1.interceptors.i1.serializers = s1 s2
+ * agent.sources.r1.interceptors.i1.serializers = s1 s2 有两个匹配租组
+ *
+ * 第一个组的数据要进行自定义类去替换,然后将替换后的值写入到header中,header的name是warning
  * agent.sources.r1.interceptors.i1.serializers.s1.type = com.blah.SomeSerializer
  * agent.sources.r1.interceptors.i1.serializers.s1.name = warning
+ *
  * agent.sources.r1.interceptors.i1.serializers.s2.type =
  *     org.apache.flume.interceptor.RegexExtractorInterceptorTimestampSerializer
  * agent.sources.r1.interceptors.i1.serializers.s2.name = error
@@ -96,17 +99,18 @@ import com.google.common.collect.Lists;
  *
  * body: 1:2:3.4foobar5 headers: one=>1, two=>2
  * </pre>
+ * 正则表达式去匹配body,将匹配到的信息添加到header中
  */
 public class RegexExtractorInterceptor implements Interceptor {
 
   static final String REGEX = "regex";
-  static final String SERIALIZERS = "serializers";
+  static final String SERIALIZERS = "serializers";//按照空格分组成集合
 
   private static final Logger logger = LoggerFactory
       .getLogger(RegexExtractorInterceptor.class);
 
   private final Pattern regex;
-  private final List<NameAndSerializer> serializers;
+  private final List<NameAndSerializer> serializers;//正则匹配后,每一个{}位置对应应该如何替换
 
   private RegexExtractorInterceptor(Pattern regex,
       List<NameAndSerializer> serializers) {
@@ -129,8 +133,8 @@ public class RegexExtractorInterceptor implements Interceptor {
     Matcher matcher = regex.matcher(
         new String(event.getBody(), Charsets.UTF_8));
     Map<String, String> headers = event.getHeaders();
-    if (matcher.find()) {
-      for (int group = 0, count = matcher.groupCount(); group < count; group++) {
+    if (matcher.find()) {//匹配正则表达式
+      for (int group = 0, count = matcher.groupCount(); group < count; group++) {//匹配的group
         int groupIndex = group + 1;
         if (groupIndex > serializers.size()) {
           if (logger.isDebugEnabled()) {
@@ -139,13 +143,13 @@ public class RegexExtractorInterceptor implements Interceptor {
           }
           break;
         }
-        NameAndSerializer serializer = serializers.get(group);
+        NameAndSerializer serializer = serializers.get(group);//找到该位置该如何替换
         if (logger.isDebugEnabled()) {
           logger.debug("Serializing {} using {}", serializer.headerName,
               serializer.serializer);
         }
         headers.put(serializer.headerName,
-            serializer.serializer.serialize(matcher.group(groupIndex)));
+            serializer.serializer.serialize(matcher.group(groupIndex)));//去替换具体的值
       }
     }
     return event;
@@ -186,10 +190,10 @@ public class RegexExtractorInterceptor implements Interceptor {
       Preconditions.checkArgument(!StringUtils.isEmpty(serializerListStr),
           "Must supply at least one name and serializer");
 
-      String[] serializerNames = serializerListStr.split("\\s+");
+      String[] serializerNames = serializerListStr.split("\\s+");//按照空格拆分
 
       Context serializerContexts =
-          new Context(context.getSubProperties(SERIALIZERS + "."));
+          new Context(context.getSubProperties(SERIALIZERS + "."));//获取配置信息
 
       serializerList = Lists.newArrayListWithCapacity(serializerNames.length);
       for (String serializerName : serializerNames) {
@@ -234,7 +238,7 @@ public class RegexExtractorInterceptor implements Interceptor {
   }
 
   static class NameAndSerializer {
-    private final String headerName;
+    private final String headerName;//用于替换后的值存储到header中的name
     private final RegexExtractorInterceptorSerializer serializer;
 
     public NameAndSerializer(String headerName,

@@ -35,11 +35,20 @@ import java.util.TimeZone;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * 文件名字可以去转换---转换的方式可以依赖于header的内容
+ * 具体转换的格式参见TAG_REGEX表达式的三种情况
+ *
+ */
 public class BucketPath {
 
   /**
    * These are useful to other classes which might want to search for tags in
    * strings.
+   * %{key}表示 从header中获取%{key} key对应的value值
+   * %x 表示一个短小的命令,用于转换时间格式
+   * %[localhost/ip/fqdn] 设置本地的ip或者host信息
+   *
    */
   public static final String TAG_REGEX = "%(\\w|%)|%\\{([\\w\\.-]+)\\}|%\\[(\\w+)\\]";
   public static final Pattern tagPattern = Pattern.compile(TAG_REGEX);
@@ -49,6 +58,7 @@ public class BucketPath {
   /**
    * Returns true if in contains a substring matching TAG_REGEX (i.e. of the
    * form %{...} or %x.
+   * true表示包含%{...} or %x.这样的表达式
    */
   @VisibleForTesting
   @Deprecated
@@ -56,6 +66,7 @@ public class BucketPath {
     return tagPattern.matcher(in).find();
   }
 
+  //将短名称转换成长名称---具体名字代表的日期格式参见replaceShorthand方法
   @VisibleForTesting
   @Deprecated
   public static String expandShorthand(char c) {
@@ -141,6 +152,7 @@ public class BucketPath {
    * with the timezone set to the default.
    *
    * <p>This static method will be REMOVED in a future version of Flume</p>
+   *
    */
   @VisibleForTesting
   @Deprecated
@@ -179,17 +191,22 @@ public class BucketPath {
    */
   @VisibleForTesting
   @Deprecated
-  public static String replaceShorthand(char c, Map<String, String> headers,
-      TimeZone timeZone, boolean needRounding, int unit, int roundDown,
-      boolean useLocalTimestamp) {
+  public static String replaceShorthand(char c,//命令信息
+      Map<String, String> headers,//请求头信息
+      TimeZone timeZone,
+      boolean needRounding,
+      int unit,
+      int roundDown,
+      boolean useLocalTimestamp) {//true表示使用本地的时间戳
     long ts = 0;
-    if (useLocalTimestamp) {
+    if (useLocalTimestamp) {//使用本地的时间戳
       ts = clock.currentTimeMillis();
     }
     return replaceShorthand(c, headers, timeZone, needRounding, unit,
         roundDown, false, ts);
   }
-  
+
+    //每种时间格式对应一个SimpleDateFormat对象
   protected static final ThreadLocal<HashMap<String, SimpleDateFormat>> simpleDateFormatCache =
       new ThreadLocal<HashMap<String, SimpleDateFormat>>() {
 
@@ -199,6 +216,7 @@ public class BucketPath {
         }
       };
 
+  //返回给定时间格式对应的时间对象
   protected static SimpleDateFormat getSimpleDateFormat(String string) {
     HashMap<String, SimpleDateFormat> localCache = simpleDateFormatCache.get();
 
@@ -214,6 +232,8 @@ public class BucketPath {
 
   /**
    * Not intended as a public API
+   * 根据不同的类型,创建不同的ip地址或者host返回
+   *
    */
   @VisibleForTesting
   protected static String replaceStaticString(String key) {
@@ -246,16 +266,17 @@ public class BucketPath {
    */
   @VisibleForTesting
   protected static String replaceShorthand(char c, Map<String, String> headers,
-      TimeZone timeZone, boolean needRounding, int unit, int roundDown,
-      boolean useLocalTimestamp, long ts) {
+      TimeZone timeZone, boolean needRounding, int unit, int roundDown,//时间的单位转换
+      boolean useLocalTimestamp,//true表示使用本地时间戳
+      long ts) {//本地的时间戳
 
     String timestampHeader = null;
     try {
-      if (!useLocalTimestamp) {
-        timestampHeader = headers.get("timestamp");
+      if (!useLocalTimestamp) {//说明不使用本地时间戳
+        timestampHeader = headers.get("timestamp");//获取时间戳
         Preconditions.checkNotNull(timestampHeader, "Expected timestamp in " +
             "the Flume event headers, but it was null");
-        ts = Long.valueOf(timestampHeader);
+        ts = Long.valueOf(timestampHeader);//时间戳转换
       } else {
         timestampHeader = String.valueOf(ts);
       }
@@ -349,7 +370,7 @@ public class BucketPath {
         return "";
     }
 
-    SimpleDateFormat format = getSimpleDateFormat(formatString);
+    SimpleDateFormat format = getSimpleDateFormat(formatString);//日期格式转换
     if (timeZone != null) {
       format.setTimeZone(timeZone);
     } else {
@@ -360,6 +381,7 @@ public class BucketPath {
     return format.format(date);
   }
 
+    //返回时间戳
   private static long roundDown(int roundDown, int unit, long ts, TimeZone timeZone) {
     long timestamp = ts;
     if (roundDown <= 0) {
@@ -451,6 +473,7 @@ public class BucketPath {
         }
 
       // Group 3 is the %[...] pattern.
+      //%[localhost/ip/fqdn] 设置本地的ip或者host信息
       } else if (matcher.group(3) != null) {
         replacement = replaceStaticString(matcher.group(3));
 
@@ -497,19 +520,20 @@ public class BucketPath {
     return getEscapeMapping(in, headers, false, 0, 0);
   }
 
+  //做各种替换处理
   @VisibleForTesting
   @Deprecated
   public static Map<String, String> getEscapeMapping(String in,
       Map<String, String> headers, boolean needRounding,
       int unit, int roundDown) {
-    Map<String, String> mapping = new HashMap<String, String>();
+    Map<String, String> mapping = new HashMap<String, String>();//key对应的value值
     Matcher matcher = tagPattern.matcher(in);
     while (matcher.find()) {
       String replacement = "";
       // Group 2 is the %{...} pattern
       if (matcher.group(2) != null) {
 
-        replacement = headers.get(matcher.group(2));
+        replacement = headers.get(matcher.group(2));//从header中获取%{key} key对应的value值
 
         if (replacement == null) {
           replacement = "";
@@ -523,7 +547,7 @@ public class BucketPath {
         Preconditions.checkState(matcher.group(1) != null
             && matcher.group(1).length() == 1,
             "Expected to match single character tag in string " + in);
-        char c = matcher.group(1).charAt(0);
+        char c = matcher.group(1).charAt(0);//解析短小的命令
         replacement = replaceShorthand(c, headers,
             needRounding, unit, roundDown);
         mapping.put(expandShorthand(c), replacement);

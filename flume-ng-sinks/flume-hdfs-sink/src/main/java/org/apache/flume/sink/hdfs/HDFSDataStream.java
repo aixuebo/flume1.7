@@ -39,10 +39,10 @@ public class HDFSDataStream extends AbstractHDFSWriter {
 
   private static final Logger logger = LoggerFactory.getLogger(HDFSDataStream.class);
 
-  private FSDataOutputStream outStream;
-  private String serializerType;
-  private Context serializerContext;
-  private EventSerializer serializer;
+  private FSDataOutputStream outStream;//hdfs上输出文件的流
+  private String serializerType;//如何序列化信息内容存储到HDFS上
+  private Context serializerContext;//返回serializer.下面的配置文件信息
+  private EventSerializer serializer;//序列化的流,即对outStream进行了包装
   private boolean useRawLocalFileSystem;
 
   @Override
@@ -53,16 +53,18 @@ public class HDFSDataStream extends AbstractHDFSWriter {
     useRawLocalFileSystem = context.getBoolean("hdfs.useRawLocalFileSystem",
         false);
     serializerContext =
-        new Context(context.getSubProperties(EventSerializer.CTX_PREFIX));
+        new Context(context.getSubProperties(EventSerializer.CTX_PREFIX));//返回serializer.下面的配置文件信息
     logger.info("Serializer = " + serializerType + ", UseRawLocalFileSystem = "
         + useRawLocalFileSystem);
   }
 
+  //返回要写的数据文件所在的文件系统
   @VisibleForTesting
   protected FileSystem getDfs(Configuration conf, Path dstPath) throws IOException {
     return dstPath.getFileSystem(conf);
   }
 
+  //在文件系统上存储打开一个文件
   protected void doOpen(Configuration conf, Path dstPath, FileSystem hdfs) throws IOException {
     if (useRawLocalFileSystem) {
       if (hdfs instanceof LocalFileSystem) {
@@ -73,6 +75,7 @@ public class HDFSDataStream extends AbstractHDFSWriter {
       }
     }
 
+    //是否追加写操作
     boolean appending = false;
     if (conf.getBoolean("hdfs.append.support", false) == true && hdfs.isFile(dstPath)) {
       outStream = hdfs.append(dstPath);
@@ -82,8 +85,8 @@ public class HDFSDataStream extends AbstractHDFSWriter {
     }
 
     serializer = EventSerializerFactory.getInstance(
-        serializerType, serializerContext, outStream);
-    if (appending && !serializer.supportsReopen()) {
+        serializerType, serializerContext, outStream);//序列化的流,即对outStream进行了包装
+    if (appending && !serializer.supportsReopen()) {//说明序列化流不支持追加写数据
       outStream.close();
       serializer = null;
       throw new IOException("serializer (" + serializerType +
@@ -91,7 +94,7 @@ public class HDFSDataStream extends AbstractHDFSWriter {
     }
 
     // must call superclass to check for replication issues
-    registerCurrentStream(outStream, hdfs, dstPath);
+    registerCurrentStream(outStream, hdfs, dstPath);//调用注册函数
 
     if (appending) {
       serializer.afterReopen();
@@ -100,6 +103,7 @@ public class HDFSDataStream extends AbstractHDFSWriter {
     }
   }
 
+  //打开一个文件
   @Override
   public void open(String filePath) throws IOException {
     Configuration conf = new Configuration();
@@ -114,6 +118,7 @@ public class HDFSDataStream extends AbstractHDFSWriter {
     open(filePath);
   }
 
+  //序列化该事件
   @Override
   public void append(Event e) throws IOException {
     serializer.write(e);

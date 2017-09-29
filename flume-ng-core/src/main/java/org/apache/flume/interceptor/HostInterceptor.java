@@ -34,6 +34,7 @@ import static org.apache.flume.interceptor.HostInterceptor.Constants.*;
  * that are intercepted.<p>
  * The host header is named <code>host</code> and its format is either the FQDN
  * or IP of the host on which this interceptor is run.
+ * 为所有的事件去设置host或者ip
  *
  *
  * Properties:<p>
@@ -58,14 +59,14 @@ import static org.apache.flume.interceptor.HostInterceptor.Constants.*;
  *   agent.sources.r1.interceptors.i1.useIP = false<p>
  *   agent.sources.r1.interceptors.i1.hostHeader = hostname<p>
  * </code>
- *
+ * 在事件的header中添加ip或者host
  */
 public class HostInterceptor implements Interceptor {
 
   private static final Logger logger = LoggerFactory
           .getLogger(HostInterceptor.class);
 
-  private final boolean preserveExisting;
+  private final boolean preserveExisting;//true表示如果已经存在,则保留,不需要再替换host的内容
   private final String header;
   private String host = null;
 
@@ -73,15 +74,16 @@ public class HostInterceptor implements Interceptor {
    * Only {@link HostInterceptor.Builder} can build me
    */
   private HostInterceptor(boolean preserveExisting,
-      boolean useIP, String header) {
+      boolean useIP,//true表示写入ip,false表示写入host
+      String header) {//header的key
     this.preserveExisting = preserveExisting;
     this.header = header;
     InetAddress addr;
     try {
       addr = InetAddress.getLocalHost();
-      if (useIP) {
+      if (useIP) {//转换成ip
         host = addr.getHostAddress();
-      } else {
+      } else {//转换成host
         host = addr.getCanonicalHostName();
       }
     } catch (UnknownHostException e) {
@@ -97,15 +99,16 @@ public class HostInterceptor implements Interceptor {
 
   /**
    * Modifies events in-place.
+   * 为每一个事件增加host参数
    */
   @Override
   public Event intercept(Event event) {
     Map<String, String> headers = event.getHeaders();
 
-    if (preserveExisting && headers.containsKey(header)) {
+    if (preserveExisting && headers.containsKey(header)) {//说明已经有ip了,因此直接返回
       return event;
     }
-    if (host != null) {
+    if (host != null) {//直接输入ip内容
       headers.put(header, host);
     }
 
@@ -116,6 +119,7 @@ public class HostInterceptor implements Interceptor {
    * Delegates to {@link #intercept(Event)} in a loop.
    * @param events
    * @return
+   * 为每一个事件增加host参数
    */
   @Override
   public List<Event> intercept(List<Event> events) {
@@ -153,6 +157,7 @@ public class HostInterceptor implements Interceptor {
 
   }
 
+  //配置参数的key内容
   public static class Constants {
     public static String HOST = "host";
 

@@ -35,8 +35,8 @@ import org.apache.flume.conf.sink.SinkGroupConfiguration;
  * @see org.apache.flume.conf.properties.PropertiesFileConfigurationProvider
  */
 public class SinkGroup implements Configurable, ConfigurableComponent {
-  List<Sink> sinks;
-  SinkProcessor processor;
+  List<Sink> sinks;//持有的一组sink
+  SinkProcessor processor;//如何处理这一组sink
   SinkGroupConfiguration conf;
 
   public SinkGroup(List<Sink> groupSinks) {

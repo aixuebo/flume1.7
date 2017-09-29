@@ -20,6 +20,7 @@ package org.apache.flume;
 
 /**
  * Facade for System.currentTimeMillis for Testing
+ * 获取时间戳
  */
 public interface Clock {
   long currentTimeMillis();

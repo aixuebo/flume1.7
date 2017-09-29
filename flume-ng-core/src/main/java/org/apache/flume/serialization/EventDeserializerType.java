@@ -24,7 +24,7 @@ import org.apache.flume.annotations.InterfaceStability;
 @InterfaceAudience.Private
 @InterfaceStability.Unstable
 public enum EventDeserializerType {
-  LINE(LineDeserializer.Builder.class),
+  LINE(LineDeserializer.Builder.class),//按照行反序列化成事件对象
   AVRO(AvroEventDeserializer.Builder.class),
   OTHER(null);
 

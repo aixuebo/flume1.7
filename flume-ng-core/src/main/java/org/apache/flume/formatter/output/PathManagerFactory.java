@@ -32,6 +32,12 @@ import java.util.Locale;
 public class PathManagerFactory {
   private static final Logger logger = LoggerFactory.getLogger(PathManagerFactory.class);
 
+    /**
+     *
+     * @param managerType PathManager类的实现类全路径
+     * @param context 配置信息
+     * @return
+     */
   public static PathManager getInstance(String managerType, Context context) {
 
     Preconditions.checkNotNull(managerType, "path manager type must not be null");
@@ -47,7 +53,7 @@ public class PathManagerFactory {
     Class<? extends PathManager.Builder> builderClass = type.getBuilderClass();
 
     // handle the case where they have specified their own builder in the config
-    if (builderClass == null) {
+    if (builderClass == null) {//PathManager类的实现类全路径
       try {
         Class c = Class.forName(managerType);
         if (c != null && PathManager.Builder.class.isAssignableFrom(c)) {

@@ -30,10 +30,11 @@ import static org.apache.flume.interceptor.TimestampInterceptor.Constants.*;
  * that are intercepted.
  * By convention, this timestamp header is named "timestamp" and its format
  * is a "stringified" long timestamp in milliseconds since the UNIX epoch.
+ * 为header中添加时间戳
  */
 public class TimestampInterceptor implements Interceptor {
 
-  private final boolean preserveExisting;
+  private final boolean preserveExisting;//true表示如果已经存在,则保留,不需要再替换内容
 
   /**
    * Only {@link TimestampInterceptor.Builder} can build me
@@ -49,6 +50,7 @@ public class TimestampInterceptor implements Interceptor {
 
   /**
    * Modifies events in-place.
+   * 为header中添加时间戳
    */
   @Override
   public Event intercept(Event event) {

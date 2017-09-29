@@ -35,9 +35,11 @@ import java.util.regex.Pattern;
  * Interceptor that allows search-and-replace of event body strings using
  * regular expressions. This only works with event bodies that are valid
  * strings. The charset is configurable.
+ * 该拦截器的目的是搜索body的正则表达式,将匹配的信息替换成新的信息。
  * <p>
  * Usage:
  * <pre>
+ *     比如将INFO替换成Log msg
  *   agent.source-1.interceptors.search-replace.searchPattern = ^INFO:
  *   agent.source-1.interceptors.search-replace.replaceString = Log msg:
  * </pre>
@@ -45,15 +47,19 @@ import java.util.regex.Pattern;
  * Any regular expression search pattern and replacement pattern that can be
  * used with {@link java.util.regex.Matcher#replaceAll(String)} may be used,
  * including backtracking and grouping.
+ *
+ * 1.将body内容转换成字符串
+ * 2.查看该字符串是否有匹配的正则表达式规则
+ * 3.将匹配的字符串替换成对应的值
  */
 public class SearchAndReplaceInterceptor implements Interceptor {
 
   private static final Logger logger = LoggerFactory
       .getLogger(SearchAndReplaceInterceptor.class);
 
-  private final Pattern searchPattern;
-  private final String replaceString;
-  private final Charset charset;
+  private final Pattern searchPattern;//准备搜索的匹配的表达式规则
+  private final String replaceString;//将匹配的字符串替换成该属性对应的值
+  private final Charset charset;//body的编码
 
   private SearchAndReplaceInterceptor(Pattern searchPattern,
                                       String replaceString,
@@ -73,10 +79,10 @@ public class SearchAndReplaceInterceptor implements Interceptor {
 
   @Override
   public Event intercept(Event event) {
-    String origBody = new String(event.getBody(), charset);
-    Matcher matcher = searchPattern.matcher(origBody);
-    String newBody = matcher.replaceAll(replaceString);
-    event.setBody(newBody.getBytes(charset));
+    String origBody = new String(event.getBody(), charset);//将body内容转换成字符串
+    Matcher matcher = searchPattern.matcher(origBody);//查看该字符串是否有匹配的正则表达式规则
+    String newBody = matcher.replaceAll(replaceString);//将匹配的字符串替换成该属性对应的值
+    event.setBody(newBody.getBytes(charset));//在重新进行字节转换
     return event;
   }
 
@@ -89,6 +95,7 @@ public class SearchAndReplaceInterceptor implements Interceptor {
   }
 
   public static class Builder implements Interceptor.Builder {
+      //配置文件中的key内容
     private static final String SEARCH_PAT_KEY = "searchPattern";
     private static final String REPLACE_STRING_KEY = "replaceString";
     private static final String CHARSET_KEY = "charset";

@@ -58,19 +58,26 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
+//入口类
+
+/**
+ * 根据事件的header不同,可以让不同的事件写入到不同的文件中
+ */
 public class HDFSEventSink extends AbstractSink implements Configurable {
+
+  //回调接口
   public interface WriterCallback {
     public void run(String filePath);
   }
 
   private static final Logger LOG = LoggerFactory.getLogger(HDFSEventSink.class);
 
-  private static String DIRECTORY_DELIMITER = System.getProperty("file.separator");
+  private static String DIRECTORY_DELIMITER = System.getProperty("file.separator");//文件分隔符
 
   private static final long defaultRollInterval = 30;
   private static final long defaultRollSize = 1024;
   private static final long defaultRollCount = 10;
-  private static final String defaultFileName = "FlumeData";
+  private static final String defaultFileName = "FlumeData";//默认文件名字
   private static final String defaultSuffix = "";
   private static final String defaultInUsePrefix = "";
   private static final String defaultInUseSuffix = ".tmp";
@@ -97,21 +104,21 @@ public class HDFSEventSink extends AbstractSink implements Configurable {
   private static final int defaultThreadPoolSize = 10;
   private static final int defaultRollTimerPoolSize = 1;
 
-  private final HDFSWriterFactory writerFactory;
-  private WriterLinkedHashMap sfWriters;
+  private final HDFSWriterFactory writerFactory;//工厂类,用于HDFS输出的文件最终什么格式的文件
+  private WriterLinkedHashMap sfWriters;//key是文件路径,value是该路径写入信息的对象BucketWriter
 
   private long rollInterval;
   private long rollSize;
   private long rollCount;
-  private long batchSize;
+  private long batchSize;//一个事务需要处理多少个事件
   private int threadsPoolSize;
   private int rollTimerPoolSize;
   private CompressionCodec codeC;
   private CompressionType compType;
   private String fileType;
-  private String filePath;
-  private String fileName;
-  private String suffix;
+  private String filePath;//文件目录,支持%{}   %[]   %x这种语法
+  private String fileName;//文件名字,支持%{}   %[]   %x这种语法
+  private String suffix;//文件后缀
   private String inUsePrefix;
   private String inUseSuffix;
   private TimeZone timeZone;
@@ -119,13 +126,13 @@ public class HDFSEventSink extends AbstractSink implements Configurable {
   private ExecutorService callTimeoutPool;
   private ScheduledExecutorService timedRollerPool;
 
-  private boolean needRounding = false;
-  private int roundUnit = Calendar.SECOND;
-  private int roundValue = 1;
-  private boolean useLocalTime = false;
+  private boolean needRounding = false;//true表示需要滚动文件,即输出的时候会切换输出的文件
+  private int roundUnit = Calendar.SECOND;//时间周期的单位,比如小时、天等
+  private int roundValue = 1;//获取周期值,比如roundUnit单位是分,roundValue为20,则表示每个20分钟切换一次文件
+  private boolean useLocalTime = false;//是否使用本地的时间戳,true表示使用本地的时间戳
 
   private long callTimeout;
-  private Context context;
+  private Context context;//上下文配置信息
   private SinkCounter sinkCounter;
 
   private volatile int idleTimeout;
@@ -145,16 +152,17 @@ public class HDFSEventSink extends AbstractSink implements Configurable {
   private static class WriterLinkedHashMap
       extends LinkedHashMap<String, BucketWriter> {
 
-    private final int maxOpenFiles;
+    private final int maxOpenFiles;//文件的最大数量
 
     public WriterLinkedHashMap(int maxOpenFiles) {
       super(16, 0.75f, true); // stock initial capacity/load, access ordering
       this.maxOpenFiles = maxOpenFiles;
     }
 
+    //关闭参数对应的文件
     @Override
     protected boolean removeEldestEntry(Entry<String, BucketWriter> eldest) {
-      if (size() > maxOpenFiles) {
+      if (size() > maxOpenFiles) {//说明文件超出了最大数量
         // If we have more that max open files, then close the last one and
         // return true
         try {
@@ -258,8 +266,8 @@ public class HDFSEventSink extends AbstractSink implements Configurable {
 
     needRounding = context.getBoolean("hdfs.round", false);
 
-    if (needRounding) {
-      String unit = context.getString("hdfs.roundUnit", "second");
+    if (needRounding) {//说明需要切换日志
+      String unit = context.getString("hdfs.roundUnit", "second");//获取切换日志的单位
       if (unit.equalsIgnoreCase("hour")) {
         this.roundUnit = Calendar.HOUR_OF_DAY;
       } else if (unit.equalsIgnoreCase("minute")) {
@@ -271,8 +279,8 @@ public class HDFSEventSink extends AbstractSink implements Configurable {
             "minute, hour, or second. Rounding will be disabled");
         needRounding = false;
       }
-      this.roundValue = context.getInteger("hdfs.roundValue", 1);
-      if (roundUnit == Calendar.SECOND || roundUnit == Calendar.MINUTE) {
+      this.roundValue = context.getInteger("hdfs.roundValue", 1);//获取周期值,比如roundUnit单位是分,roundValue为20,则表示每个20分钟切换一次文件
+      if (roundUnit == Calendar.SECOND || roundUnit == Calendar.MINUTE) {//必须在0-24之间
         Preconditions.checkArgument(roundValue > 0 && roundValue <= 60,
             "Round value" +
             "must be > 0 and <= 60");
@@ -283,7 +291,7 @@ public class HDFSEventSink extends AbstractSink implements Configurable {
       }
     }
 
-    this.useLocalTime = context.getBoolean("hdfs.useLocalTimeStamp", false);
+    this.useLocalTime = context.getBoolean("hdfs.useLocalTimeStamp", false);//是否使用本地的时间戳
     if (useLocalTime) {
       clock = new SystemClock();
     }
@@ -293,6 +301,7 @@ public class HDFSEventSink extends AbstractSink implements Configurable {
     }
   }
 
+  //true表示编码方式是匹配的
   private static boolean codecMatches(Class<? extends CompressionCodec> cls, String codecName) {
     String simpleName = cls.getSimpleName();
     if (cls.getName().equals(codecName) || simpleName.equalsIgnoreCase(codecName)) {
@@ -307,16 +316,17 @@ public class HDFSEventSink extends AbstractSink implements Configurable {
     return false;
   }
 
+  //返回参数对应的编码对象
   @VisibleForTesting
   static CompressionCodec getCodec(String codecName) {
     Configuration conf = new Configuration();
-    List<Class<? extends CompressionCodec>> codecs = CompressionCodecFactory.getCodecClasses(conf);
+    List<Class<? extends CompressionCodec>> codecs = CompressionCodecFactory.getCodecClasses(conf);//获取所有的编码类型集合
     // Wish we could base this on DefaultCodec but appears not all codec's
     // extend DefaultCodec(Lzo)
     CompressionCodec codec = null;
-    ArrayList<String> codecStrs = new ArrayList<String>();
+    ArrayList<String> codecStrs = new ArrayList<String>();//编码集合的简单名字
     codecStrs.add("None");
-    for (Class<? extends CompressionCodec> cls : codecs) {
+    for (Class<? extends CompressionCodec> cls : codecs) {//循环每一个编码集合
       codecStrs.add(cls.getSimpleName());
       if (codecMatches(cls, codecName)) {
         try {
@@ -330,7 +340,7 @@ public class HDFSEventSink extends AbstractSink implements Configurable {
     }
 
     if (codec == null) {
-      if (!codecName.equalsIgnoreCase("None")) {
+      if (!codecName.equalsIgnoreCase("None")) {//说明不支持该编码
         throw new IllegalArgumentException("Unsupported compression codec "
             + codecName + ".  Please choose from: " + codecStrs);
       }
@@ -354,28 +364,31 @@ public class HDFSEventSink extends AbstractSink implements Configurable {
   public Status process() throws EventDeliveryException {
     Channel channel = getChannel();
     Transaction transaction = channel.getTransaction();
-    List<BucketWriter> writers = Lists.newArrayList();
+    List<BucketWriter> writers = Lists.newArrayList();//本次所有的writer对象
     transaction.begin();
     try {
       int txnEventCount = 0;
-      for (txnEventCount = 0; txnEventCount < batchSize; txnEventCount++) {
+      for (txnEventCount = 0; txnEventCount < batchSize; txnEventCount++) {//获取批处理个事件
         Event event = channel.take();
         if (event == null) {
           break;
         }
 
         // reconstruct the path name by substituting place holders
+        //文件目录以及文件名字,支持%{}   %[]   %x这种语法,将其转换成真正的文件名字和路径
+          //因为每一个事件的header不同,因此最终生成的文件路径以及文件name可能是不同的
         String realPath = BucketPath.escapeString(filePath, event.getHeaders(),
             timeZone, needRounding, roundUnit, roundValue, useLocalTime);
         String realName = BucketPath.escapeString(fileName, event.getHeaders(),
             timeZone, needRounding, roundUnit, roundValue, useLocalTime);
 
-        String lookupPath = realPath + DIRECTORY_DELIMITER + realName;
+        String lookupPath = realPath + DIRECTORY_DELIMITER + realName;//获取最终的文件全路径
         BucketWriter bucketWriter;
         HDFSWriter hdfsWriter = null;
         // Callback to remove the reference to the bucket writer from the
         // sfWriters map so that all buffers used by the HDFS file
         // handles are garbage collected.
+          //回调函数的实现
         WriterCallback closeCallback = new WriterCallback() {
           @Override
           public void run(String bucketPath) {
@@ -388,7 +401,7 @@ public class HDFSEventSink extends AbstractSink implements Configurable {
         synchronized (sfWritersLock) {
           bucketWriter = sfWriters.get(lookupPath);
           // we haven't seen this file yet, so open it and cache the handle
-          if (bucketWriter == null) {
+          if (bucketWriter == null) {//说明该文件没有创建输出流
             hdfsWriter = writerFactory.getWriter(fileType);
             bucketWriter = initializeBucketWriter(realPath, realName,
               lookupPath, hdfsWriter, closeCallback);
@@ -397,13 +410,13 @@ public class HDFSEventSink extends AbstractSink implements Configurable {
         }
 
         // track the buckets getting written in this transaction
-        if (!writers.contains(bucketWriter)) {
+        if (!writers.contains(bucketWriter)) {//说明该目录是不存在的,因此添加即可
           writers.add(bucketWriter);
         }
 
         // Write the data to HDFS
         try {
-          bucketWriter.append(event);
+          bucketWriter.append(event);//向指定的文件写入事件
         } catch (BucketClosedException ex) {
           LOG.info("Bucket was closed while trying to append, " +
                    "reinitializing bucket and writing event.");
@@ -419,18 +432,18 @@ public class HDFSEventSink extends AbstractSink implements Configurable {
 
       if (txnEventCount == 0) {
         sinkCounter.incrementBatchEmptyCount();
-      } else if (txnEventCount == batchSize) {
+      } else if (txnEventCount == batchSize) {//说明完成一个批处理
         sinkCounter.incrementBatchCompleteCount();
       } else {
         sinkCounter.incrementBatchUnderflowCount();
       }
 
       // flush all pending buckets before committing the transaction
-      for (BucketWriter bucketWriter : writers) {
+      for (BucketWriter bucketWriter : writers) {//每一个文件进行flush操作
         bucketWriter.flush();
       }
 
-      transaction.commit();
+      transaction.commit();//说明文件都写入成功了,进行commit操作
 
       if (txnEventCount < 1) {
         return Status.BACKOFF;
@@ -455,6 +468,15 @@ public class HDFSEventSink extends AbstractSink implements Configurable {
     }
   }
 
+    /**
+     * 初始化创建一个BucketWriter对象
+     * @param realPath 文件的目录
+     * @param realName 文件的名字
+     * @param lookupPath 文件的全路径
+     * @param hdfsWriter HDFSWriter对象
+     * @param closeCallback 文件的回调函数
+     * @return
+     */
   private BucketWriter initializeBucketWriter(String realPath,
       String realName, String lookupPath, HDFSWriter hdfsWriter,
       WriterCallback closeCallback) {

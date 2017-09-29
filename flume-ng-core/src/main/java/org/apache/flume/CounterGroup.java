@@ -25,28 +25,33 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Used for counting events, collecting metrics, etc.
+ * 计数器,作为每一个name的统计指标
  */
 public class CounterGroup {
 
   private String name;
-  private HashMap<String, AtomicLong> counters;
+  private HashMap<String, AtomicLong> counters;//记录每一个name对应的计数器
 
   public CounterGroup() {
     counters = new HashMap<String, AtomicLong>();
   }
 
+  //获取该name对应的计数器值
   public synchronized Long get(String name) {
     return getCounter(name).get();
   }
 
+  //为该name增加一个计数器
   public synchronized Long incrementAndGet(String name) {
     return getCounter(name).incrementAndGet();
   }
 
+  //为该name增加多个计数器值
   public synchronized Long addAndGet(String name, Long delta) {
     return getCounter(name).addAndGet(delta);
   }
 
+  //merge操作
   public synchronized void add(CounterGroup counterGroup) {
     synchronized (counterGroup) {
       for (Entry<String, AtomicLong> entry : counterGroup.getCounters()
@@ -57,10 +62,12 @@ public class CounterGroup {
     }
   }
 
+  //为name设置一个固定的新值
   public synchronized void set(String name, Long value) {
     getCounter(name).set(value);
   }
 
+  //返回该name对应的计数器值
   public synchronized AtomicLong getCounter(String name) {
     if (!counters.containsKey(name)) {
       counters.put(name, new AtomicLong());

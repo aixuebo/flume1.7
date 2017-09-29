@@ -24,6 +24,7 @@ import java.util.Random;
 /**
  * An implementation of OrderSelector which returns objects in random order.
  * Also supports backoff.
+ * 使用随机数的方式获取每一个元素
  */
 public class RandomOrderSelector<T> extends OrderSelector<T> {
 
@@ -35,14 +36,14 @@ public class RandomOrderSelector<T> extends OrderSelector<T> {
 
   @Override
   public synchronized Iterator<T> createIterator() {
-    List<Integer> indexList = getIndexList();
+    List<Integer> indexList = getIndexList();//可用的sink集合
 
     int size = indexList.size();
-    int[] indexOrder = new int[size];
+    int[] indexOrder = new int[size];//最终要执行的顺序
 
     while (indexList.size() != 1) {
-      int pick = random.nextInt(indexList.size());
-      indexOrder[indexList.size() - 1] = indexList.remove(pick);
+      int pick = random.nextInt(indexList.size());//随机选择一个位置
+      indexOrder[indexList.size() - 1] = indexList.remove(pick);//将该选择的位置移除掉,添加到indexOrder的最后一个位置,因为每次indexList.size()都会减少一个.因此最终indexOrder数组会被填满
     }
 
     indexOrder[0] = indexList.get(0);

@@ -36,6 +36,7 @@ import com.google.common.collect.Lists;
 /**
  * Interceptor that filters events selectively based on a configured regular
  * expression matching against the event body.
+ * 属于过滤器拦截器,基于正则表达式进行过滤。
  *
  * This supports either include- or exclude-based filtering. A given
  * interceptor can only perform one of these functions, but multiple
@@ -45,6 +46,7 @@ import com.google.common.collect.Lists;
  * and all events not matching will be ignored. If exclude-based filtering is
  * configured, than all events matching will be ignored, and all other events
  * will pass through.
+ * 支持include或者exclude模式,即匹配的正则表达式是要,还是抛弃
  *
  * Note that all regular expression matching occurs through Java's built in
  * java.util.regex package.

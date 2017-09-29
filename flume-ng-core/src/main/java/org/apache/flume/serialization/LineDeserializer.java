@@ -33,6 +33,7 @@ import java.util.List;
 
 /**
  * A deserializer that parses text lines from a file.
+ * 从一个输入源中读取数据
  */
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
@@ -40,15 +41,15 @@ public class LineDeserializer implements EventDeserializer {
 
   private static final Logger logger = LoggerFactory.getLogger(LineDeserializer.class);
 
-  private final ResettableInputStream in;
-  private final Charset outputCharset;
-  private final int maxLineLength;
+  private final ResettableInputStream in;//输入源
+  private final Charset outputCharset;//输出编码
+  private final int maxLineLength;//一行最多多少字节
   private volatile boolean isOpen;
 
-  public static final String OUT_CHARSET_KEY = "outputCharset";
+  public static final String OUT_CHARSET_KEY = "outputCharset";//输出编码方式
   public static final String CHARSET_DFLT = "UTF-8";
 
-  public static final String MAXLINE_KEY = "maxLineLength";
+  public static final String MAXLINE_KEY = "maxLineLength";//一行允许的最大字节数
   public static final int MAXLINE_DFLT = 2048;
 
   LineDeserializer(Context context, ResettableInputStream in) {
@@ -63,6 +64,7 @@ public class LineDeserializer implements EventDeserializer {
    * Reads a line from a file and returns an event
    * @return Event containing parsed line
    * @throws IOException
+   * 读取一个事件
    */
   @Override
   public Event readEvent() throws IOException {
@@ -80,6 +82,7 @@ public class LineDeserializer implements EventDeserializer {
    * @param numEvents Maximum number of events to return.
    * @return List of events containing read lines
    * @throws IOException
+   * 读取多个事件
    */
   @Override
   public List<Event> readEvents(int numEvents) throws IOException {
@@ -96,12 +99,14 @@ public class LineDeserializer implements EventDeserializer {
     return events;
   }
 
+  //标记
   @Override
   public void mark() throws IOException {
     ensureOpen();
     in.mark();
   }
 
+  //恢复到上一个标记的位置
   @Override
   public void reset() throws IOException {
     ensureOpen();
@@ -128,8 +133,8 @@ public class LineDeserializer implements EventDeserializer {
   private String readLine() throws IOException {
     StringBuilder sb = new StringBuilder();
     int c;
-    int readChars = 0;
-    while ((c = in.readChar()) != -1) {
+    int readChars = 0;//读取的字符数量
+    while ((c = in.readChar()) != -1) {//不断读取数据,直到读取\n为止
       readChars++;
 
       // FIXME: support \r\n

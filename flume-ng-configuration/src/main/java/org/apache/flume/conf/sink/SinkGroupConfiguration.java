@@ -87,6 +87,7 @@ public class SinkGroupConfiguration extends ComponentConfiguration {
     this.processorConf = conf;
   }
 
+  //返回sink的处理器
   private SinkProcessorType getKnownSinkProcessor(String type) {
     SinkProcessorType[] values = SinkProcessorType.values();
     for (SinkProcessorType value : values) {

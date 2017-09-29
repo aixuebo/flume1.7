@@ -23,28 +23,32 @@ import java.io.File;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.flume.Context;
 
+/**
+ * 在滚动的文件sink中on关于创建文件
+ */
 public class DefaultPathManager implements PathManager {
 
-  private long seriesTimestamp;
-  private File baseDirectory;
+  private long seriesTimestamp;//当前时间戳
+  private File baseDirectory;//在哪个文件夹下创建文件
   private AtomicInteger fileIndex;
-  private String filePrefix;
-  private String extension;
+  private String filePrefix;//前缀
+  private String extension;//后缀
 
-  private static final String DEFAULT_FILE_PREFIX = "";
-  private static final String DEFAULT_FILE_EXTENSION = "";
-  private static final String FILE_EXTENSION = "extension";
-  private static final String FILE_PREFIX = "prefix";
+  private static final String DEFAULT_FILE_PREFIX = "";//默认文件前缀
+  private static final String DEFAULT_FILE_EXTENSION = "";//默认文件后缀名
+  private static final String FILE_EXTENSION = "extension";//文件后缀
+  private static final String FILE_PREFIX = "prefix";//文件前缀
 
-  protected File currentFile;
+  protected File currentFile;//当前处理的文件,名字为前缀+时间戳+-+序号+后缀
 
   public DefaultPathManager(Context context) {
-    filePrefix = context.getString(FILE_PREFIX, DEFAULT_FILE_PREFIX);
-    extension = context.getString(FILE_EXTENSION, DEFAULT_FILE_EXTENSION);
+    filePrefix = context.getString(FILE_PREFIX, DEFAULT_FILE_PREFIX);//获取文件前缀
+    extension = context.getString(FILE_EXTENSION, DEFAULT_FILE_EXTENSION);//获取文件后缀
     seriesTimestamp = System.currentTimeMillis();
     fileIndex = new AtomicInteger();
   }
 
+    //默认每次调用,都会产生一个新的文件,文件名是有一个int逐渐增长的
   @Override
   public File nextFile() {
     StringBuilder sb = new StringBuilder();

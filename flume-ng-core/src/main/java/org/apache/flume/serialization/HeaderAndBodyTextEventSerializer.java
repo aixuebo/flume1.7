@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 /**
  * This class simply writes the body of the event to the output stream
  * and appends a newline after each event.
+ * 记录事件的header和body内容,以及是否一个事件后面追加回车换行
  */
 public class HeaderAndBodyTextEventSerializer implements EventSerializer {
 
@@ -39,7 +40,7 @@ public class HeaderAndBodyTextEventSerializer implements EventSerializer {
   private final boolean APPEND_NEWLINE_DFLT = true;
 
   private final OutputStream out;
-  private final boolean appendNewline;
+  private final boolean appendNewline;//是否一个事件后面追加回车换行,true表示追加
 
   private HeaderAndBodyTextEventSerializer(OutputStream out, Context ctx) {
     this.appendNewline = ctx.getBoolean(APPEND_NEWLINE, APPEND_NEWLINE_DFLT);

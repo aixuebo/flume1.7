@@ -53,6 +53,7 @@ public interface Sink extends LifecycleAware, NamedComponent {
   /**
    * <p>Sets the channel the sink will consume from</p>
    * @param channel The channel to be polled
+   * 说明该sink消费哪个渠道的数据
    */
   public void setChannel(Channel channel);
 
@@ -70,10 +71,12 @@ public interface Sink extends LifecycleAware, NamedComponent {
    * no data could be retrieved from the channel feeding this sink
    * @throws EventDeliveryException In case of any kind of failure to
    * deliver data to the next hop destination.
+   * 如何处理该sink
    */
   public Status process() throws EventDeliveryException;
 
   public static enum Status {
-    READY, BACKOFF
+    READY,
+    BACKOFF//说明此时sink有问题,要下线
   }
 }

@@ -67,7 +67,7 @@ final class FlumeEventQueue {
   private final InflightEventWrapper inflightTakes;//用于存储正在take操作的数据
   private final InflightEventWrapper inflightPuts;//用于存储正在put操作的数据
   private long searchTime = 0;
-  private long searchCount = 0;
+  private long searchCount = 0;//查询总时间
   private long copyTime = 0;
   private long copyCount = 0;
   private DB db;//数据库对象

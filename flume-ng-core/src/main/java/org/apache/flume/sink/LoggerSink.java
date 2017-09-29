@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
  * A {@link org.apache.flume.Sink} implementation that logs all events received at the INFO level
  * to the <tt>org.apache.flume.sink.LoggerSink</tt> logger.
  * </p>
+ * 实现是记录所有收到的事件信息,将其转换成 只要前面maxBytes个字节,然后将截取的内容记录到log日志里面
  * <p>
  * <b>WARNING:</b> Logging events can potentially introduce performance
  * degradation.
@@ -62,7 +63,7 @@ public class LoggerSink extends AbstractSink implements Configurable {
   // Max number of bytes to be dumped
   private int maxBytesToLog = DEFAULT_MAX_BYTE_DUMP;
 
-  public static final String MAX_BYTES_DUMP_KEY = "maxBytesToLog";
+  public static final String MAX_BYTES_DUMP_KEY = "maxBytesToLog";//截取事件的maxBytes个字节
 
   @Override
   public void configure(Context context) {
@@ -92,7 +93,7 @@ public class LoggerSink extends AbstractSink implements Configurable {
 
       if (event != null) {
         if (logger.isInfoEnabled()) {
-          logger.info("Event: " + EventHelper.dumpEvent(event, maxBytesToLog));
+          logger.info("Event: " + EventHelper.dumpEvent(event, maxBytesToLog));//截取事件的maxBytes个字节,然后返回的内容记录到log日志里面
         }
       } else {
         // No event found, request back-off semantics from the sink runner

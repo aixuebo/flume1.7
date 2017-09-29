@@ -38,6 +38,7 @@ import org.apache.flume.util.RoundRobinOrderSelector;
 
 /**
  * <p>Provides the ability to load-balance flow over multiple sinks.</p>
+ * 提供负载均衡能力的sink处理器
  *
  * <p>The <tt>LoadBalancingSinkProcessor</tt> maintains an indexed list of
  * active sinks on which the load must be distributed. This implementation
@@ -78,10 +79,11 @@ import org.apache.flume.util.RoundRobinOrderSelector;
  *
  * @see FailoverSinkProcessor
  * @see LoadBalancingSinkProcessor.SinkSelector
+ * 负载均衡sink处理器
  */
 public class LoadBalancingSinkProcessor extends AbstractSinkProcessor {
   public static final String CONFIG_SELECTOR = "selector";
-  public static final String CONFIG_SELECTOR_PREFIX = CONFIG_SELECTOR + ".";
+  public static final String CONFIG_SELECTOR_PREFIX = CONFIG_SELECTOR + ".";//selector.后面的配置信息
   public static final String CONFIG_BACKOFF = "backoff";
 
   public static final String SELECTOR_NAME_ROUND_ROBIN = "ROUND_ROBIN";
@@ -145,16 +147,17 @@ public class LoadBalancingSinkProcessor extends AbstractSinkProcessor {
     selector.stop();
   }
 
+    //返回处理的状态,该方法从sink集合中选择一个sink出来进行处理,因此达到了负载均衡的目的
   @Override
   public Status process() throws EventDeliveryException {
     Status status = null;
 
-    Iterator<Sink> sinkIterator = selector.createSinkIterator();
+    Iterator<Sink> sinkIterator = selector.createSinkIterator();//sink集合的迭代器
     while (sinkIterator.hasNext()) {
-      Sink sink = sinkIterator.next();
+      Sink sink = sinkIterator.next();//获取每一个sink对象
       try {
-        status = sink.process();
-        break;
+        status = sink.process();//仅仅成功处理一个sink对象即可
+        break;//成功处理,break
       } catch (Exception ex) {
         selector.informSinkFailed(sink);
         LOGGER.warn("Sink failed to consume event. "
@@ -194,11 +197,11 @@ public class LoadBalancingSinkProcessor extends AbstractSinkProcessor {
    */
   public interface SinkSelector extends Configurable, LifecycleAware {
 
-    void setSinks(List<Sink> sinks);
+    void setSinks(List<Sink> sinks);//持有的sink集合
 
     Iterator<Sink> createSinkIterator();
 
-    void informSinkFailed(Sink failedSink);
+    void informSinkFailed(Sink failedSink);//说明该sink失败了
   }
 
   /**
@@ -244,6 +247,7 @@ public class LoadBalancingSinkProcessor extends AbstractSinkProcessor {
   /**
    * A sink selector that implements a random sink selection policy. This
    * implementation is not thread safe.
+   * 按照随机数的方式获取元素
    */
   private static class RandomOrderSinkSelector extends AbstractSinkSelector {
 

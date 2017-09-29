@@ -44,8 +44,8 @@ public class SinkRunner implements LifecycleAware {
 
   private static final Logger logger = LoggerFactory
       .getLogger(SinkRunner.class);
-  private static final long backoffSleepIncrement = 1000;
-  private static final long maxBackoffSleep = 5000;
+  private static final long backoffSleepIncrement = 1000;//backoff状态下,先睡眠时间
+  private static final long maxBackoffSleep = 5000;//backoff状态下,先最大睡眠时间
 
   private CounterGroup counterGroup;
   private PollingRunner runner;
@@ -129,31 +129,32 @@ public class SinkRunner implements LifecycleAware {
    * {@link Runnable} that {@linkplain SinkProcessor#process() polls} a
    * {@link SinkProcessor} and manages event delivery notification,
    * {@link Sink.Status BACKOFF} delay handling, etc.
+   * 轮循sink的process方法
    */
   public static class PollingRunner implements Runnable {
 
     private SinkProcessor policy;
-    private AtomicBoolean shouldStop;
+    private AtomicBoolean shouldStop;//true表示stop
     private CounterGroup counterGroup;
 
     @Override
     public void run() {
       logger.debug("Polling sink runner starting");
 
-      while (!shouldStop.get()) {
+      while (!shouldStop.get()) {//不stop,则不断循环处理
         try {
-          if (policy.process().equals(Sink.Status.BACKOFF)) {
-            counterGroup.incrementAndGet("runner.backoffs");
+          if (policy.process().equals(Sink.Status.BACKOFF)) {//说明此时sink有问题
+            counterGroup.incrementAndGet("runner.backoffs");//有问题的次数累加1
 
             Thread.sleep(Math.min(
                 counterGroup.incrementAndGet("runner.backoffs.consecutive")
-                * backoffSleepIncrement, maxBackoffSleep));
+                * backoffSleepIncrement, maxBackoffSleep));//有问题则进行睡眠一会
           } else {
             counterGroup.set("runner.backoffs.consecutive", 0L);
           }
         } catch (InterruptedException e) {
           logger.debug("Interrupted while processing an event. Exiting.");
-          counterGroup.incrementAndGet("runner.interruptions");
+          counterGroup.incrementAndGet("runner.interruptions");//出现问题的次数
         } catch (Exception e) {
           logger.error("Unable to deliver event. Exception follows.", e);
           if (e instanceof EventDeliveryException) {

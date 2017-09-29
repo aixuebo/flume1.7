@@ -29,6 +29,7 @@ import org.apache.flume.annotations.InterfaceStability;
 /**
  * Establishes a contract for reading events stored in arbitrary formats from
  * reliable, resettable streams.
+ * 从数据源中如何反序列化成事件对象的类
  */
 @InterfaceAudience.Public
 @InterfaceStability.Evolving
@@ -40,6 +41,7 @@ public interface EventDeserializer extends Resettable, Closeable {
    * @throws IOException
    * @see #mark()
    * @see #reset()
+   * 从文件中反序列化一个事件
    */
   public Event readEvent() throws IOException;
 
@@ -50,6 +52,7 @@ public interface EventDeserializer extends Resettable, Closeable {
    * @throws IOException
    * @see #mark()
    * @see #reset()
+   * 从文件中反序列化多个事件
    */
   public List<Event> readEvents(int numEvents) throws IOException;
 
@@ -58,6 +61,7 @@ public interface EventDeserializer extends Resettable, Closeable {
    * returned by this EventDeserializer have been successfully committed.
    * @throws IOException
    * @see #reset()
+   * 对数据源进行mark标记
    */
   @Override
   public void mark() throws IOException;
@@ -68,6 +72,7 @@ public interface EventDeserializer extends Resettable, Closeable {
    * be done in the case of inability to commit previously-deserialized events.
    * @throws IOException
    * @see #mark()
+   * 对数据源恢复到mark标记的位置
    */
   @Override
   public void reset() throws IOException;

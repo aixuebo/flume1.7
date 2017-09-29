@@ -120,6 +120,7 @@ public abstract class OrderSelector<T> {
   /**
    *
    * @return - List of indices currently active objects
+   * 返回当前可以使用的集合
    */
   protected List<Integer> getIndexList() {
     long now = System.currentTimeMillis();

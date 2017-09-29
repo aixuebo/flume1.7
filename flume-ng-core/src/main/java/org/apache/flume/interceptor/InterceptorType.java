@@ -21,13 +21,13 @@ package org.apache.flume.interceptor;
 //拦截器
 public enum InterceptorType {
 
-  TIMESTAMP(org.apache.flume.interceptor.TimestampInterceptor.Builder.class),
-  HOST(org.apache.flume.interceptor.HostInterceptor.Builder.class),
-  STATIC(org.apache.flume.interceptor.StaticInterceptor.Builder.class),
+  TIMESTAMP(org.apache.flume.interceptor.TimestampInterceptor.Builder.class),//追加时间戳信息
+  HOST(org.apache.flume.interceptor.HostInterceptor.Builder.class),//追加host信息
+  STATIC(org.apache.flume.interceptor.StaticInterceptor.Builder.class),//追加一个静态的,预先配置好的信息到每一个事件中
   REGEX_FILTER(
-      org.apache.flume.interceptor.RegexFilteringInterceptor.Builder.class),
-  REGEX_EXTRACTOR(org.apache.flume.interceptor.RegexExtractorInterceptor.Builder.class),
-  SEARCH_REPLACE(org.apache.flume.interceptor.SearchAndReplaceInterceptor.Builder.class);
+      org.apache.flume.interceptor.RegexFilteringInterceptor.Builder.class),//属于过滤器拦截器,基于正则表达式进行过滤。即不满足的事件就会被抛弃了
+  REGEX_EXTRACTOR(org.apache.flume.interceptor.RegexExtractorInterceptor.Builder.class),//正则表达式抽取数据,将抽取的数据添加到header中
+  SEARCH_REPLACE(org.apache.flume.interceptor.SearchAndReplaceInterceptor.Builder.class);//该拦截器的目的是搜索body的正则表达式,将匹配的信息替换成新的信息。
 
   private final Class<? extends Interceptor.Builder> builderClass;
 

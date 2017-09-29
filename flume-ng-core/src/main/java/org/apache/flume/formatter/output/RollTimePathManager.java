@@ -32,20 +32,22 @@ import java.io.File;
 public class RollTimePathManager extends DefaultPathManager {
 
   private final DateTimeFormatter formatter = DateTimeFormat.forPattern("yyyyMMddHHmmss");
-  private String lastRoll;
+  private String lastRoll;//上一次滚动的时间产生的文件名
 
   public RollTimePathManager(Context context) {
     super(context);
   }
 
+    //如何产生一个新的文件
   @Override
   public File nextFile() {
     StringBuilder sb = new StringBuilder();
     String date = formatter.print(LocalDateTime.now());
-    if (!date.equals(lastRoll)) {
-      getFileIndex().set(0);
+    if (!date.equals(lastRoll)) {//说明时间有变化
+      getFileIndex().set(0);//从0开始计数
       lastRoll = date;
     }
+    //文件名字  前缀+date+-+序号+后缀
     sb.append(getPrefix()).append(date).append("-");
     sb.append(getFileIndex().incrementAndGet());
     if (getExtension().length() > 0) {

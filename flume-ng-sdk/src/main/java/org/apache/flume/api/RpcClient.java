@@ -41,6 +41,7 @@ public interface RpcClient {
   /**
    * Returns the maximum number of {@link Event events} that may be batched
    * at once by {@link #appendBatch(List) appendBatch()}.
+   * 每一个事务要处理多少条数据
    */
   public int getBatchSize();
 
@@ -58,6 +59,7 @@ public interface RpcClient {
    * @param event
    * @return
    * @throws EventDeliveryException when an error prevents event delivery.
+   * 追加这一批次数据集合去处理
    */
   public void append(Event event) throws EventDeliveryException;
 
@@ -81,6 +83,7 @@ public interface RpcClient {
    * @param events List of events to send
    * @return
    * @throws EventDeliveryException when an error prevents event delivery.
+   * 追加这一批次数据集合去处理
    */
   public void appendBatch(List<Event> events) throws
       EventDeliveryException;
@@ -91,6 +94,7 @@ public interface RpcClient {
    *
    * <p>If this method returns {@code false}, an application must call
    * {@link #close()} on this object to clean up system resources.</p>
+   * 该客户端是否还活着,true表示活着
    */
   public boolean isActive();
 

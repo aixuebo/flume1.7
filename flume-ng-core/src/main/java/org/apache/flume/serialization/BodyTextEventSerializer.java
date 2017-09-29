@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 /**
  * This class simply writes the body of the event to the output stream
  * and appends a newline after each event.
+ * 简单的实现,将事件的body内容追加到输出流中,同时每一个事件后面追加一个回车换行
  */
 public class BodyTextEventSerializer implements EventSerializer {
 
@@ -38,7 +39,7 @@ public class BodyTextEventSerializer implements EventSerializer {
   private final boolean APPEND_NEWLINE_DFLT = true;
 
   private final OutputStream out;
-  private final boolean appendNewline;
+  private final boolean appendNewline;//true表示每一次是否追加一个新行
 
   private BodyTextEventSerializer(OutputStream out, Context ctx) {
     this.appendNewline = ctx.getBoolean(APPEND_NEWLINE, APPEND_NEWLINE_DFLT);
@@ -68,7 +69,7 @@ public class BodyTextEventSerializer implements EventSerializer {
   @Override
   public void write(Event e) throws IOException {
     out.write(e.getBody());
-    if (appendNewline) {
+    if (appendNewline) {//说明追加一个新行
       out.write('\n');
     }
   }

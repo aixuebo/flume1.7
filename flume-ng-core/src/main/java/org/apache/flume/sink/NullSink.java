@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
  * <p>
  * A {@link Sink} implementation that simply discards all events it receives. A
  * <tt>/dev/null</tt> for Flume.
+ * 一个简单的实现,丢弃所有接收到的事件
  * </p>
  * <p>
  * <b>Configuration options</b>
@@ -64,12 +65,12 @@ public class NullSink extends AbstractSink implements Configurable {
 
   @Override
   public void configure(Context context) {
-    batchSize = context.getInteger("batchSize", DFLT_BATCH_SIZE);
+    batchSize = context.getInteger("batchSize", DFLT_BATCH_SIZE);//每一个事务里面要从channel里面读取多少条事件
     logger.debug(this.getName() + " " +
         "batch size set to " + String.valueOf(batchSize));
     Preconditions.checkArgument(batchSize > 0, "Batch size must be > 0");
 
-    logEveryNEvents = context.getInteger("logEveryNEvents", DFLT_LOG_EVERY_N_EVENTS);
+    logEveryNEvents = context.getInteger("logEveryNEvents", DFLT_LOG_EVERY_N_EVENTS);//每隔多少个事件打印一次日志
     logger.debug(this.getName() + " " +
         "log event N events set to " + logEveryNEvents);
     Preconditions.checkArgument(logEveryNEvents > 0, "logEveryNEvents must be > 0");
@@ -87,9 +88,9 @@ public class NullSink extends AbstractSink implements Configurable {
     try {
       transaction.begin();
       int i = 0;
-      for (i = 0; i < batchSize; i++) {
+      for (i = 0; i < batchSize; i++) {//每个事务过去batchSize个事件
         event = channel.take();
-        if (++eventCounter % logEveryNEvents == 0) {
+        if (++eventCounter % logEveryNEvents == 0) {//说过该打印日志了
           logger.info("Null sink {} successful processed {} events.", getName(), eventCounter);
         }
         if (event == null) {
@@ -98,7 +99,7 @@ public class NullSink extends AbstractSink implements Configurable {
         }
       }
       transaction.commit();
-      counterGroup.addAndGet("events.success", (long) Math.min(batchSize, i));
+      counterGroup.addAndGet("events.success", (long) Math.min(batchSize, i));//成功读取多少个事件
       counterGroup.incrementAndGet("transaction.success");
     } catch (Exception ex) {
       transaction.rollback();

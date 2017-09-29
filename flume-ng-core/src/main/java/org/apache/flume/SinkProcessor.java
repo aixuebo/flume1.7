@@ -53,6 +53,7 @@ public interface SinkProcessor extends LifecycleAware, Configurable {
    * or {@code BACKOFF} if no events were available in the channel to consume.
    * @throws EventDeliveryException if the behavior guaranteed by the processor
    * couldn't be carried out.
+   * 外界不断的调用该方法进行消费
    */
   Status process() throws EventDeliveryException;
 

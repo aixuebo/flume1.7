@@ -39,6 +39,7 @@ public class EventHelper {
     return dumpEvent(event, DEFAULT_MAX_BYTES);
   }
 
+    //截取事件的maxBytes个字节,然后返回
   public static String dumpEvent(Event event, int maxBytes) {
     StringBuilder buffer = new StringBuilder();
     if (event == null || event.getBody() == null) {
@@ -47,10 +48,10 @@ public class EventHelper {
       // do nothing... in this case, HexDump.dump() will throw an exception
     } else {
       byte[] body = event.getBody();
-      byte[] data = Arrays.copyOf(body, Math.min(body.length, maxBytes));
+      byte[] data = Arrays.copyOf(body, Math.min(body.length, maxBytes));//最多copy maxBytes个字节
       ByteArrayOutputStream out = new ByteArrayOutputStream();
       try {
-        HexDump.dump(data, 0, out, 0);
+        HexDump.dump(data, 0, out, 0);//将data内容存储到out中
         String hexDump = new String(out.toByteArray());
         // remove offset since it's not relevant for such a small dataset
         if (hexDump.startsWith(HEXDUMP_OFFSET)) {

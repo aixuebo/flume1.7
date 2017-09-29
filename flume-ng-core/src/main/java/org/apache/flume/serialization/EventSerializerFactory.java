@@ -36,6 +36,13 @@ public class EventSerializerFactory {
   private static final Logger logger =
       LoggerFactory.getLogger(EventSerializerFactory.class);
 
+    /**
+     *
+     * @param serializerType 序列化类型,即如何序列化数据
+     * @param context 上下文配置信息
+     * @param out 序列化后的数据写出到哪个流中
+     * @return
+     */
   public static EventSerializer getInstance(
       String serializerType, Context context, OutputStream out) {
 
@@ -50,6 +57,8 @@ public class EventSerializerFactory {
       logger.debug("Not in enum, loading builder class: {}", serializerType);
       type = EventSerializerType.OTHER;
     }
+
+    //用户自定义的type
     Class<? extends EventSerializer.Builder> builderClass =
         type.getBuilderClass();
 

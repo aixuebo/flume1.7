@@ -22,7 +22,7 @@ package org.apache.flume;
  * Default implementation of Clock which uses System
  */
 public class SystemClock implements Clock {
-
+  //获取当前节点的系统的时间戳
   public long currentTimeMillis() {
     return System.currentTimeMillis();
   }

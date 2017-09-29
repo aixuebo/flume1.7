@@ -25,6 +25,7 @@ import java.util.Map;
 
 import org.apache.flume.Event;
 
+//将body和header组装成一个Event事件对象
 public class EventBuilder {
 
   /**
@@ -53,6 +54,7 @@ public class EventBuilder {
     return withBody(body, null);
   }
 
+  //body的内容按照charset进行编码
   public static Event withBody(String body, Charset charset,
       Map<String, String> headers) {
 

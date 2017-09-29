@@ -26,12 +26,13 @@ import java.util.List;
  * the specified order array. The entries of the order array indicate the
  * index within the ordered list of items that needs to be picked over the
  * course of iteration.
+ * 一个工具类,按照order的顺序获取item元素
  */
 public class SpecificOrderIterator<T> implements Iterator<T> {
 
-  private final int[] order;
-  private final List<T> items;
-  private int index = 0;
+  private final int[] order;//按照什么顺序去获取元素
+  private final List<T> items;//持有元素的对象集合
+  private int index = 0;//下一个要获取的order的下标对应的元素
 
   public SpecificOrderIterator(int[] orderArray, List<T> itemList) {
     order = orderArray;

@@ -32,7 +32,7 @@ import com.google.common.base.Preconditions;
 @InterfaceStability.Stable
 public abstract class AbstractSink implements Sink, LifecycleAware {
 
-  private Channel channel;
+  private Channel channel;//该sink对应的channel
   private String name;
 
   private LifecycleState lifecycleState;

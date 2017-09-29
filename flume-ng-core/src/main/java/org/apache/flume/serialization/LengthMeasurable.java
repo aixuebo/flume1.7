@@ -19,9 +19,12 @@ package org.apache.flume.serialization;
 
 import java.io.IOException;
 
+//长度度量
 public interface LengthMeasurable {
 
-  /** returns the total length of the stream or file */
+  /** returns the total length of the stream or file
+   * 返回流或者文件的总长度
+   **/
   long length() throws IOException;
 
 }

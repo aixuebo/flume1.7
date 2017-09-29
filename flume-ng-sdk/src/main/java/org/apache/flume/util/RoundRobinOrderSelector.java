@@ -23,11 +23,11 @@ import java.util.List;
 /**
  * An implementation of OrderSelector which returns objects in round robin order.
  * Also supports backoff.
+ * 实现的一个
  */
-
 public class RoundRobinOrderSelector<T> extends OrderSelector<T> {
 
-  private int nextHead = 0;
+  private int nextHead = 0;//下一个选择第几个sink
 
   public RoundRobinOrderSelector(boolean shouldBackOff) {
     super(shouldBackOff);
@@ -35,10 +35,10 @@ public class RoundRobinOrderSelector<T> extends OrderSelector<T> {
 
   @Override
   public Iterator<T> createIterator() {
-    List<Integer> activeIndices = getIndexList();
-    int size = activeIndices.size();
+    List<Integer> activeIndices = getIndexList();//返回可用的sink集合
+    int size = activeIndices.size();//一共多少个sink
     // possible that the size has shrunk so gotta adjust nextHead for that
-    if (nextHead >= size) {
+    if (nextHead >= size) {//说明要从头开始迭代
       nextHead = 0;
     }
     int begin = nextHead++;
@@ -46,10 +46,10 @@ public class RoundRobinOrderSelector<T> extends OrderSelector<T> {
       nextHead = 0;
     }
 
-    int[] indexOrder = new int[size];
+    int[] indexOrder = new int[size];//最终的顺序序号
 
     for (int i = 0; i < size; i++) {
-      indexOrder[i] = activeIndices.get((begin + i) % size);
+      indexOrder[i] = activeIndices.get((begin + i) % size);//以此获取每一个sink对应的序号
     }
 
     return new SpecificOrderIterator<T>(indexOrder, getObjects());

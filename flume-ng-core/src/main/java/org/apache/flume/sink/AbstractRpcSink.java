@@ -144,17 +144,17 @@ import java.util.concurrent.locks.ReentrantLock;
 public abstract class AbstractRpcSink extends AbstractSink implements Configurable {
 
   private static final Logger logger = LoggerFactory.getLogger(AbstractRpcSink.class);
-  private String hostname;
+  private String hostname;//远程的host以及prot
   private Integer port;
-  private RpcClient client;
-  private Properties clientProps;
-  private SinkCounter sinkCounter;
-  private int cxnResetInterval;
-  private AtomicBoolean resetConnectionFlag;
+  private RpcClient client;//客户端对象
+  private Properties clientProps;//客户端需要的参数信息
+  private SinkCounter sinkCounter;//计数器
+  private int cxnResetInterval;//每隔多久就要重新建立一次连接
+  private AtomicBoolean resetConnectionFlag;//true表示需要重新建立连接了
   private final int DEFAULT_CXN_RESET_INTERVAL = 0;
   private final ScheduledExecutorService cxnResetExecutor =
       Executors.newSingleThreadScheduledExecutor(
-          new ThreadFactoryBuilder().setNameFormat("Rpc Sink Reset Thread").build());
+          new ThreadFactoryBuilder().setNameFormat("Rpc Sink Reset Thread").build());//线程池
 
   @Override
   public void configure(Context context) {
@@ -166,9 +166,9 @@ public abstract class AbstractRpcSink extends AbstractSink implements Configurab
     Preconditions.checkState(hostname != null, "No hostname specified");
     Preconditions.checkState(port != null, "No port specified");
 
-    clientProps.setProperty(RpcClientConfigurationConstants.CONFIG_HOSTS, "h1");
+    clientProps.setProperty(RpcClientConfigurationConstants.CONFIG_HOSTS, "h1");//设置参数hosts的值是h1
     clientProps.setProperty(RpcClientConfigurationConstants.CONFIG_HOSTS_PREFIX +
-        "h1", hostname + ":" + port);
+        "h1", hostname + ":" + port);//设置hosts.h1的参数为host:port
 
     for (Entry<String, String> entry: context.getParameters().entrySet()) {
       clientProps.setProperty(entry.getKey(), entry.getValue());
@@ -178,10 +178,10 @@ public abstract class AbstractRpcSink extends AbstractSink implements Configurab
       sinkCounter = new SinkCounter(getName());
     }
     cxnResetInterval = context.getInteger("reset-connection-interval",
-      DEFAULT_CXN_RESET_INTERVAL);
+      DEFAULT_CXN_RESET_INTERVAL);//每个多久建立一次连接
     if (cxnResetInterval == DEFAULT_CXN_RESET_INTERVAL) {
       logger.info("Connection reset is set to " + String.valueOf(DEFAULT_CXN_RESET_INTERVAL) +
-                  ". Will not reset connection to next hop");
+                  ". Will not reset connection to next hop");//说明此时不会进行重新建立连接操作
     }
   }
 
@@ -191,6 +191,7 @@ public abstract class AbstractRpcSink extends AbstractSink implements Configurab
    * connection needs to be created to the next hop.
    * @param props
    * @return
+   * 根据参数,创建一个客户端
    */
   protected abstract RpcClient initializeRpcClient(Properties props);
 
@@ -207,7 +208,7 @@ public abstract class AbstractRpcSink extends AbstractSink implements Configurab
           new Object[] { getName(), hostname, port });
       try {
         resetConnectionFlag = new AtomicBoolean(false);
-        client = initializeRpcClient(clientProps);
+        client = initializeRpcClient(clientProps);//产生一个新的客户端
         Preconditions.checkNotNull(client, "Rpc Client could not be " +
             "initialized. " + getName() + " could not be started");
         sinkCounter.incrementConnectionCreatedCount();
@@ -215,7 +216,7 @@ public abstract class AbstractRpcSink extends AbstractSink implements Configurab
           cxnResetExecutor.schedule(new Runnable() {
             @Override
             public void run() {
-              resetConnectionFlag.set(true);
+              resetConnectionFlag.set(true);//每隔一定周期,设置标识符为true,即要重新建立连接
             }
           }, cxnResetInterval, TimeUnit.SECONDS);
         }
@@ -242,6 +243,7 @@ public abstract class AbstractRpcSink extends AbstractSink implements Configurab
     }
   }
 
+  //销毁连接
   private void destroyConnection() {
     if (client != null) {
       logger.debug("Rpc sink {} closing Rpc client: {}", getName(), client);
@@ -287,7 +289,7 @@ public abstract class AbstractRpcSink extends AbstractSink implements Configurab
     logger.info("Starting {}...", this);
     sinkCounter.start();
     try {
-      createConnection();
+      createConnection();//创建连接
     } catch (FlumeException e) {
       logger.warn("Unable to create Rpc client using hostname: " + hostname
           + ", port: " + port, e);
@@ -332,7 +334,7 @@ public abstract class AbstractRpcSink extends AbstractSink implements Configurab
     Channel channel = getChannel();
     Transaction transaction = channel.getTransaction();
 
-    if (resetConnectionFlag.get()) {
+    if (resetConnectionFlag.get()) {//说明要重新创建连接
       resetConnection();
       // if the time to reset is long and the timeout is short
       // this may cancel the next reset request
@@ -345,10 +347,11 @@ public abstract class AbstractRpcSink extends AbstractSink implements Configurab
 
       verifyConnection();
 
+      //获取的事件数据
       List<Event> batch = Lists.newLinkedList();
 
-      for (int i = 0; i < client.getBatchSize(); i++) {
-        Event event = channel.take();
+      for (int i = 0; i < client.getBatchSize(); i++) {//循环要处理多少条数据
+        Event event = channel.take();//获取一个数据
 
         if (event == null) {
           break;
@@ -360,11 +363,11 @@ public abstract class AbstractRpcSink extends AbstractSink implements Configurab
       int size = batch.size();
       int batchSize = client.getBatchSize();
 
-      if (size == 0) {
+      if (size == 0) {//说明此时没有数据被获取到
         sinkCounter.incrementBatchEmptyCount();
         status = Status.BACKOFF;
       } else {
-        if (size < batchSize) {
+        if (size < batchSize) {//说明此时数据已经全部获取完成
           sinkCounter.incrementBatchUnderflowCount();
         } else {
           sinkCounter.incrementBatchCompleteCount();

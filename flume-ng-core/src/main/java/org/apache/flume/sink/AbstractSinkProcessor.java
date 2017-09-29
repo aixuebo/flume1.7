@@ -32,7 +32,7 @@ public abstract class AbstractSinkProcessor implements SinkProcessor {
 
   private LifecycleState state;
 
-  // List of sinks as specified
+  // List of sinks as specified 该sink处理器要处理的一组sink集合
   private List<Sink> sinkList;
 
   @Override

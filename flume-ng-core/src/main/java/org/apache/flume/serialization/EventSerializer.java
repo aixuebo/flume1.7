@@ -81,17 +81,20 @@ public interface EventSerializer {
 
   /**
    * {@link Context} prefix
+   * 配置文件的前缀
    */
   public static String CTX_PREFIX = "serializer.";
 
   /**
    * Hook to write a header after file is opened for the first time.
+   * 文件第一次写入数据的时候,即刚刚创建完成后,要先写入一些头信息
    */
   public void afterCreate() throws IOException;
 
   /**
    * Hook to handle any framing needed when file is re-opened (for write).<br/>
    * Could have been named {@code afterOpenForAppend()}.
+   * 追加操作的时候是对一个文件再一次打开,因此调用该方法,表示打开后该如何操作
    */
   public void afterReopen() throws IOException;
 
@@ -99,6 +102,7 @@ public interface EventSerializer {
    * Serialize and write the given event.
    * @param event Event to write to the underlying stream.
    * @throws IOException
+   * 写入一个事件到输出流中,此时参数事件为原始事件,需要在此方法中进行包装
    */
   public void write(Event event) throws IOException;
 
@@ -114,6 +118,7 @@ public interface EventSerializer {
    * Hook to write a trailer before the stream is closed.
    * Implementations must not buffer data in this call since
    * EventSerializer.flush() is not guaranteed to be called after beforeClose().
+   * 文件在clase前调用该方法
    */
   public void beforeClose() throws IOException;
 

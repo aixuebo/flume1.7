@@ -23,6 +23,7 @@ import org.apache.flume.Context;
 
 /**
  * Creates the files used by the RollingFileSink.
+ * 在滚动的文件sink中on关于创建文件
  */
 public interface PathManager {
   /**
@@ -30,12 +31,14 @@ public interface PathManager {
    */
   public static String CTX_PREFIX = "pathManager.";
 
-  File nextFile();
+  File nextFile();//接下来要创建的文件
 
-  File getCurrentFile();
+  File getCurrentFile();//当前操作的文件
 
+  //准确切换文件
   void rotate();
 
+  //用于在哪个目录下创建文件
   File getBaseDirectory();
 
   void setBaseDirectory(File baseDirectory);

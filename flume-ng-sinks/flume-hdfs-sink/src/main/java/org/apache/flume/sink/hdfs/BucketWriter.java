@@ -54,6 +54,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * Internal API intended for HDFSSink use.
  * This class does file rolling and handles file formats and serialization.
  * Only the public methods in this class are thread safe.
+ * 该文件会滚动输出的文件,以及文件的格式化和序列化
  */
 class BucketWriter {
 
@@ -115,14 +116,21 @@ class BucketWriter {
   protected boolean closed = false;
   AtomicInteger renameTries = new AtomicInteger(0);
 
-  BucketWriter(long rollInterval, long rollSize, long rollCount, long batchSize,
-      Context context, String filePath, String fileName, String inUsePrefix,
-      String inUseSuffix, String fileSuffix, CompressionCodec codeC,
-      CompressionType compType, HDFSWriter writer,
-      ScheduledExecutorService timedRollerPool, PrivilegedExecutor proxyUser,
-      SinkCounter sinkCounter, int idleTimeout, WriterCallback onCloseCallback,
-      String onCloseCallbackPath, long callTimeout,
-      ExecutorService callTimeoutPool, long retryInterval,
+
+  BucketWriter(long rollInterval, long rollSize, long rollCount,
+               long batchSize,
+      Context context,
+      String filePath, String fileName,
+      String inUsePrefix,String inUseSuffix, String fileSuffix,
+      CompressionCodec codeC,CompressionType compType, HDFSWriter writer,
+      ScheduledExecutorService timedRollerPool,
+      PrivilegedExecutor proxyUser,
+      SinkCounter sinkCounter,
+      int idleTimeout, WriterCallback onCloseCallback,
+      String onCloseCallbackPath,
+      long callTimeout,
+      ExecutorService callTimeoutPool,
+      long retryInterval,
       int maxCloseTries) {
     this.rollInterval = rollInterval;
     this.rollSize = rollSize;

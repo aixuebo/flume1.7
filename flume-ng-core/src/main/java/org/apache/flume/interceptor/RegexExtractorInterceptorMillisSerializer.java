@@ -29,20 +29,22 @@ import com.google.common.base.Preconditions;
 /**
  * Serializer that converts the passed in value into milliseconds using the
  * specified formatting pattern
+ * 将传入的日期类型的值,转换成时间戳
  */
 public class RegexExtractorInterceptorMillisSerializer implements
     RegexExtractorInterceptorSerializer {
 
-  private DateTimeFormatter formatter;
+  private DateTimeFormatter formatter;//日期的表达式
 
   @Override
   public void configure(Context context) {
-    String pattern = context.getString("pattern");
+    String pattern = context.getString("pattern");//日期表达式在配置文件中的key
     Preconditions.checkArgument(!StringUtils.isEmpty(pattern),
         "Must configure with a valid pattern");
     formatter = DateTimeFormat.forPattern(pattern);
   }
 
+  //将日期转换成时间戳
   @Override
   public String serialize(String value) {
     DateTime dateTime = formatter.parseDateTime(value);

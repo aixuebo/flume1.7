@@ -43,6 +43,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.flume.serialization.EventSerializer;
 import org.apache.flume.serialization.EventSerializerFactory;
 
+//滚动在一个目录下,每隔一定时间周期,产生一个新的文件用于存储接收到的数据
 public class RollingFileSink extends AbstractSink implements Configurable {
 
   private static final Logger logger = LoggerFactory
@@ -50,21 +51,21 @@ public class RollingFileSink extends AbstractSink implements Configurable {
   private static final long defaultRollInterval = 30;
   private static final int defaultBatchSize = 100;
 
-  private int batchSize = defaultBatchSize;
+  private int batchSize = defaultBatchSize;//批处理,一次事务要写入多少条事件
 
-  private File directory;
-  private long rollInterval;
-  private OutputStream outputStream;
-  private ScheduledExecutorService rollService;
+  private File directory;//存储数据的目录
+  private long rollInterval;//滚动的时间间隔
+  private OutputStream outputStream;//当前正在写入文件的输出流
+  private ScheduledExecutorService rollService;//滚动的线程
 
-  private String serializerType;
-  private Context serializerContext;
-  private EventSerializer serializer;
+  private String serializerType;//文件存储到文件中的数据格式
+  private Context serializerContext;//获取sink.serializer.下的配置信息
+  private EventSerializer serializer;//序列化后的数据写出到哪个流中
 
-  private SinkCounter sinkCounter;
+  private SinkCounter sinkCounter;//计数器
 
-  private PathManager pathController;
-  private volatile boolean shouldRotate;
+  private PathManager pathController;//如何切换一个文件
+  private volatile boolean shouldRotate;//true表示该滚动了
 
   public RollingFileSink() {
     shouldRotate = false;
@@ -74,17 +75,17 @@ public class RollingFileSink extends AbstractSink implements Configurable {
   public void configure(Context context) {
 
     String pathManagerType = context.getString("sink.pathManager", "DEFAULT");
-    String directory = context.getString("sink.directory");
-    String rollInterval = context.getString("sink.rollInterval");
+    String directory = context.getString("sink.directory");//存储数据的目录
+    String rollInterval = context.getString("sink.rollInterval");//滚动文件的时间间隔
 
-    serializerType = context.getString("sink.serializer", "TEXT");
+    serializerType = context.getString("sink.serializer", "TEXT");//文件存储到文件中的数据格式,默认是文本格式
     serializerContext =
         new Context(context.getSubProperties("sink." +
-            EventSerializer.CTX_PREFIX));
+            EventSerializer.CTX_PREFIX));//获取sink.serializer.下的配置信息
 
     Context pathManagerContext =
               new Context(context.getSubProperties("sink." +
-                      PathManager.CTX_PREFIX));
+                      PathManager.CTX_PREFIX));//获取sink.pathManager.下的配置信息
     pathController = PathManagerFactory.getInstance(pathManagerType, pathManagerContext);
 
     Preconditions.checkArgument(directory != null, "Directory may not be null");
@@ -111,8 +112,8 @@ public class RollingFileSink extends AbstractSink implements Configurable {
     sinkCounter.start();
     super.start();
 
-    pathController.setBaseDirectory(directory);
-    if (rollInterval > 0) {
+    pathController.setBaseDirectory(directory);//设置切换文件的基础目录
+    if (rollInterval > 0) {//说明文件要定时滚动起来
 
       rollService = Executors.newScheduledThreadPool(
           1,
@@ -131,23 +132,23 @@ public class RollingFileSink extends AbstractSink implements Configurable {
         @Override
         public void run() {
           logger.debug("Marking time to rotate file {}",
-              pathController.getCurrentFile());
+              pathController.getCurrentFile());//产生一个新的文件
           shouldRotate = true;
         }
 
       }, rollInterval, rollInterval, TimeUnit.SECONDS);
     } else {
-      logger.info("RollInterval is not valid, file rolling will not happen.");
+      logger.info("RollInterval is not valid, file rolling will not happen.");//说明文件不会被滚动起来
     }
     logger.info("RollingFileSink {} started.", getName());
   }
 
   @Override
   public Status process() throws EventDeliveryException {
-    if (shouldRotate) {
+    if (shouldRotate) {//true说明要往新文件里面写数据了,即文件已经滚动切换了
       logger.debug("Time to rotate {}", pathController.getCurrentFile());
 
-      if (outputStream != null) {
+      if (outputStream != null) {//说明文件已经存在,要进行关闭
         logger.debug("Closing file {}", pathController.getCurrentFile());
 
         try {
@@ -155,7 +156,7 @@ public class RollingFileSink extends AbstractSink implements Configurable {
           serializer.beforeClose();
           outputStream.close();
           sinkCounter.incrementConnectionClosedCount();
-          shouldRotate = false;
+          shouldRotate = false;//说明已经切换完毕
         } catch (IOException e) {
           sinkCounter.incrementConnectionFailedCount();
           throw new EventDeliveryException("Unable to rotate file "
@@ -169,14 +170,14 @@ public class RollingFileSink extends AbstractSink implements Configurable {
     }
 
     if (outputStream == null) {
-      File currentFile = pathController.getCurrentFile();
+      File currentFile = pathController.getCurrentFile();//获取当前要写入的文件
       logger.debug("Opening output stream for file {}", currentFile);
       try {
         outputStream = new BufferedOutputStream(
             new FileOutputStream(currentFile));
         serializer = EventSerializerFactory.getInstance(
-            serializerType, serializerContext, outputStream);
-        serializer.afterCreate();
+            serializerType, serializerContext, outputStream);//序列化后的数据写出到哪个流中
+        serializer.afterCreate();//文件第一次写入数据的时候,即刚刚创建完成后,要先写入一些头信息
         sinkCounter.incrementConnectionCreatedCount();
       } catch (IOException e) {
         sinkCounter.incrementConnectionFailedCount();
@@ -193,7 +194,7 @@ public class RollingFileSink extends AbstractSink implements Configurable {
     try {
       transaction.begin();
       int eventAttemptCounter = 0;
-      for (int i = 0; i < batchSize; i++) {
+      for (int i = 0; i < batchSize; i++) {//循环写入多少条事件数据
         event = channel.take();
         if (event != null) {
           sinkCounter.incrementEventDrainAttemptCount();

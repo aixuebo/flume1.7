@@ -43,14 +43,14 @@ public abstract class AbstractHDFSWriter implements HDFSWriter {
   private FSDataOutputStream outputStream;
   private FileSystem fs;
   private Path destPath;
-  private Method refGetNumCurrentReplicas = null;
-  private Method refGetDefaultReplication = null;
-  private Method refHflushOrSync = null;
+  private Method refGetNumCurrentReplicas = null;//getNumCurrentReplicas方法的反射
+  private Method refGetDefaultReplication = null;//getDefaultReplication方法的反射
+  private Method refHflushOrSync = null;//hflush方法或者sync方法的反射
   private Integer configuredMinReplicas = null;
   private Integer numberOfCloseRetries = null;
   private long timeBetweenCloseRetries = Long.MAX_VALUE;
 
-  static final Object[] NO_ARGS = new Object[]{};
+  static final Object[] NO_ARGS = new Object[]{};//不需要参数
 
   @Override
   public void configure(Context context) {
@@ -103,6 +103,12 @@ public abstract class AbstractHDFSWriter implements HDFSWriter {
     return false;
   }
 
+    /**
+     *
+     * @param outputStream 输出流,即向HDFS的这个流进行写数据
+     * @param fs 该写出流对应的文件所在的操作系统
+     * @param destPath 该写出流对应的文件路径
+     */
   protected void registerCurrentStream(FSDataOutputStream outputStream,
                                       FileSystem fs, Path destPath) {
     Preconditions.checkNotNull(outputStream, "outputStream must not be null");
@@ -112,12 +118,13 @@ public abstract class AbstractHDFSWriter implements HDFSWriter {
     this.outputStream = outputStream;
     this.fs = fs;
     this.destPath = destPath;
-    this.refGetNumCurrentReplicas = reflectGetNumCurrentReplicas(outputStream);
-    this.refGetDefaultReplication = reflectGetDefaultReplication(fs);
-    this.refHflushOrSync = reflectHflushOrSync(outputStream);
+    this.refGetNumCurrentReplicas = reflectGetNumCurrentReplicas(outputStream);//getNumCurrentReplicas方法的反射
+    this.refGetDefaultReplication = reflectGetDefaultReplication(fs);//getDefaultReplication方法的反射
+    this.refHflushOrSync = reflectHflushOrSync(outputStream);////hflush方法或者sync方法的反射
 
   }
 
+  //取消注册
   protected void unregisterCurrentStream() {
     this.outputStream = null;
     this.fs = null;
@@ -156,6 +163,7 @@ public abstract class AbstractHDFSWriter implements HDFSWriter {
    * @throws InvocationTargetException
    * @throws IllegalAccessException
    * @throws IllegalArgumentException
+   * 返回该流需要多少个备份
    */
   public int getNumCurrentReplicas()
       throws IllegalArgumentException, IllegalAccessException,
@@ -175,6 +183,7 @@ public abstract class AbstractHDFSWriter implements HDFSWriter {
   /**
    * Find the 'getNumCurrentReplicas' on the passed <code>os</code> stream.
    * @return Method or null.
+   * getNumCurrentReplicas方法的反射
    */
   private Method reflectGetNumCurrentReplicas(FSDataOutputStream os) {
     Method m = null;
@@ -206,6 +215,7 @@ public abstract class AbstractHDFSWriter implements HDFSWriter {
    * Find the 'getDefaultReplication' method on the passed <code>fs</code>
    * FileSystem that takes a Path argument.
    * @return Method or null.
+   * getDefaultReplication方法的反射
    */
   private Method reflectGetDefaultReplication(FileSystem fileSystem) {
     Method m = null;
@@ -231,6 +241,7 @@ public abstract class AbstractHDFSWriter implements HDFSWriter {
     return m;
   }
 
+  //hflush方法或者sync方法的反射
   private Method reflectHflushOrSync(FSDataOutputStream os) {
     Method m = null;
     if (os != null) {
@@ -257,6 +268,7 @@ public abstract class AbstractHDFSWriter implements HDFSWriter {
    * hflush, else it calls sync.
    * @param os - The stream to flush/sync
    * @throws IOException
+   * 执行hflush方法
    */
   protected void hflushOrSync(FSDataOutputStream os) throws IOException {
     try {

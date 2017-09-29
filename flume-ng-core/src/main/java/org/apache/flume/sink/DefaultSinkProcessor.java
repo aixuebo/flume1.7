@@ -34,6 +34,7 @@ import com.google.common.base.Preconditions;
  * Default sink processor that only accepts a single sink, passing on process
  * results without any additional handling. Suitable for all sinks that aren't
  * assigned to a group.
+ * 默认的sink处理器,只会接收一个sink,而不是接收一组sink
  */
 public class DefaultSinkProcessor implements SinkProcessor, ConfigurableComponent {
   private Sink sink;

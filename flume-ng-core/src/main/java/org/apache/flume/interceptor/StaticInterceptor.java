@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Interceptor class that appends a static, pre-configured header to all events.
- *
+ * 追加一个静态的,预先配置好的信息到每一个事件中
  * Properties:<p>
  *
  *   key: Key to use in static header insertion.
@@ -48,6 +48,7 @@ import org.slf4j.LoggerFactory;
  *   agent.sources.r1.interceptors = i1<p>
  *   agent.sources.r1.interceptors.i1.type = static<p>
  *   agent.sources.r1.interceptors.i1.preserveExisting = false<p>
+ *   为每一个事件追加静态的配置datacenter = NYC_01信息
  *   agent.sources.r1.interceptors.i1.key = datacenter<p>
  *   agent.sources.r1.interceptors.i1.value= NYC_01<p>
  * </code>
@@ -57,9 +58,9 @@ public class StaticInterceptor implements Interceptor {
 
   private static final Logger logger = LoggerFactory.getLogger(StaticInterceptor.class);
 
-  private final boolean preserveExisting;
-  private final String key;
-  private final String value;
+  private final boolean preserveExisting;//true表示如果已经存在,则保留,不需要再替换内容
+  private final String key;//要追加的key
+  private final String value;//要追加的value
 
   /**
    * Only {@link HostInterceptor.Builder} can build me
@@ -87,7 +88,7 @@ public class StaticInterceptor implements Interceptor {
       return event;
     }
 
-    headers.put(key, value);
+    headers.put(key, value);//追加key=value信息
     return event;
   }
 

@@ -22,6 +22,7 @@ import org.apache.flume.conf.ComponentConfiguration;
 
 /**
  * Serializer that simply returns the passed in value
+ * 抽取什么值,转换后还是什么值,即没有任何变化
  */
 public class RegexExtractorInterceptorPassThroughSerializer implements
     RegexExtractorInterceptorSerializer {

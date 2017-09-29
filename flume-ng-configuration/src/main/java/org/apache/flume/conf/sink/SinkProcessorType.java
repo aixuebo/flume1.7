@@ -18,9 +18,11 @@
  */
 package org.apache.flume.conf.sink;
 
+//sink处理器的对应关系
 public enum SinkProcessorType {
   /**
    * Place holder for custom sinks not part of this enumeration.
+   * 自定义的sink处理器
    */
   OTHER(null),
 

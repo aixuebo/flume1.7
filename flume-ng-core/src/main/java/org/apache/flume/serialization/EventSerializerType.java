@@ -21,13 +21,14 @@ package org.apache.flume.serialization;
 import org.apache.flume.annotations.InterfaceAudience;
 import org.apache.flume.annotations.InterfaceStability;
 
+//如何序列化一个事件
 @InterfaceAudience.Private
 @InterfaceStability.Unstable
 public enum EventSerializerType {
-  TEXT(BodyTextEventSerializer.Builder.class),
-  HEADER_AND_TEXT(HeaderAndBodyTextEventSerializer.Builder.class),
+  TEXT(BodyTextEventSerializer.Builder.class),//记录事件的body内容
+  HEADER_AND_TEXT(HeaderAndBodyTextEventSerializer.Builder.class),//记录事件的body和header内容
   AVRO_EVENT(FlumeEventAvroEventSerializer.Builder.class),
-  OTHER(null);
+  OTHER(null);//自定义class
 
   private final Class<? extends EventSerializer.Builder> builderClass;
 

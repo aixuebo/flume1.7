@@ -47,8 +47,8 @@ class EventQueueBackingStoreFactory {
     File metaDataFile = Serialization.getMetaDataFile(checkpointFile);
     RandomAccessFile checkpointFileHandle = null;
     try {
-      boolean checkpointExists = checkpointFile.exists();
-      boolean metaDataExists = metaDataFile.exists();
+      boolean checkpointExists = checkpointFile.exists();//数据文件
+      boolean metaDataExists = metaDataFile.exists();//元数据文件
       if (metaDataExists) {
         // if we have a metadata file but no checkpoint file, we have a problem
         // delete everything in the checkpoint directory and force
@@ -100,6 +100,7 @@ class EventQueueBackingStoreFactory {
     }
   }
 
+    //升级到最新版本
   private static EventQueueBackingStore upgrade(File checkpointFile, int capacity, String name,
                                                 File backupCheckpointDir, boolean shouldBackup,
                                                 boolean compressBackup) throws Exception {

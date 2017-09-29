@@ -23,6 +23,7 @@ import org.apache.flume.conf.ConfigurableComponent;
 /**
  * Serializer for serializing groups matched by the
  * {@link RegexExtractorInterceptor}
+ * 对抽取出来的数据进行转换
  */
 public interface RegexExtractorInterceptorSerializer extends Configurable,
     ConfigurableComponent {
@@ -31,6 +32,8 @@ public interface RegexExtractorInterceptorSerializer extends Configurable,
    * @param value
    *          The value extracted by the {@link RegexExtractorInterceptor}
    * @return The serialized version of the specified value
+   * value是抽取出来的原始数据
+   * 返回值是转换后的数据
    */
   String serialize(String value);
 
