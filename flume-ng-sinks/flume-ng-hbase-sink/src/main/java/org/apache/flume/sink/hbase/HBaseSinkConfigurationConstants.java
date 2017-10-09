@@ -28,11 +28,11 @@ public class HBaseSinkConfigurationConstants {
   /**
    * The Hbase table which the sink should write to.
    */
-  public static final String CONFIG_TABLE = "table";
+  public static final String CONFIG_TABLE = "table";//获取tableName
   /**
    * The column family which the sink should use.
    */
-  public static final String CONFIG_COLUMN_FAMILY = "columnFamily";
+  public static final String CONFIG_COLUMN_FAMILY = "columnFamily";//获取family
   /**
    * Maximum number of events the sink should take from the channel per
    * transaction, if available.

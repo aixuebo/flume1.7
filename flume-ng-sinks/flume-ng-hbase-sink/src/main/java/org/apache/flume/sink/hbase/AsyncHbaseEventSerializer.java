@@ -33,6 +33,7 @@ import org.hbase.async.PutRequest;
  * The table should be valid on the column family. An implementation
  * of this interface is expected by the {@linkplain AsyncHBaseSink} to serialize
  * the events.
+ * 异步的序列化方式
  */
 public interface AsyncHbaseEventSerializer extends Configurable, ConfigurableComponent {
 

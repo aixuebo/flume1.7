@@ -58,6 +58,8 @@ import java.util.NavigableMap;
 
 /**
  * A simple sink which reads events from a channel and writes them to HBase.
+ * 从channel中读取数据,写入到hbase中
+ *
  * The Hbase configuration is picked up from the first <tt>hbase-site.xml</tt>
  * encountered in the classpath. This sink supports batch reading of
  * events from the channel, and writing them to Hbase, to minimize the number
@@ -81,23 +83,32 @@ import java.util.NavigableMap;
  * <p>
  * <strong>Note: </strong> While this sink flushes all events in a transaction
  * to HBase in one shot, Hbase does not guarantee atomic commits on multiple
- * rows. So if a subset of events in a batch are written to disk by Hbase and
+ * rows.
+ * 注意:在一个事务内,这个sink将所有事件都发送到habse中,hbase不保证会将多行数据都原子提交给hbase.
+ *
+ * So if a subset of events in a batch are written to disk by Hbase and
  * Hbase fails, the flume transaction is rolled back, causing flume to write
  * all the events in the transaction all over again, which will cause
- * duplicates. The serializer is expected to take care of the handling of
+ * duplicates.
+ * 所以如果通过hbase写入到磁盘了,但是一部分失败了,因此该flume事务会回滚,此时会造成数据重复,因为下一次会将写入成功的又写入了一遍。
+ *
+ * The serializer is expected to take care of the handling of
  * duplicates etc. HBase also does not support batch increments, so if
  * multiple increments are returned by the serializer, then HBase failure
  * will cause them to be re-written, when HBase comes back up.
+ *
+ * 因此最好使用正则表达式获取rowkey那种方式,可以避免数据重复插入
+ *
  */
 public class HBaseSink extends AbstractSink implements Configurable {
-  private String tableName;
-  private byte[] columnFamily;
-  private HTable table;
+  private String tableName;//hbase的tableName
+  private byte[] columnFamily;//要存储到hbase的table的哪个family里面
+  private HTable table;//hbase的table对象
   private long batchSize;
   private Configuration config;
   private static final Logger logger = LoggerFactory.getLogger(HBaseSink.class);
   private HbaseEventSerializer serializer;
-  private String eventSerializerType;
+  private String eventSerializerType;//如何序列化事件
   private Context serializerContext;
   private String kerberosPrincipal;
   private String kerberosKeytab;
@@ -105,7 +116,7 @@ public class HBaseSink extends AbstractSink implements Configurable {
   private boolean batchIncrements = false;
   private Method refGetFamilyMap = null;
   private SinkCounter sinkCounter;
-  private PrivilegedExecutor privilegedExecutor;
+  private PrivilegedExecutor privilegedExecutor;//权限执行器
 
   // Internal hooks used for unit testing.
   private DebugIncrementsCallback debugIncrCallback = null;
@@ -125,10 +136,12 @@ public class HBaseSink extends AbstractSink implements Configurable {
     this.debugIncrCallback = cb;
   }
 
+  //进行hbase的table的校验以及family的校验
   @Override
   public void start() {
     Preconditions.checkArgument(table == null, "Please call stop " +
         "before calling start on an old instance.");
+    //创建权限执行器
     try {
       privilegedExecutor =
           FlumeAuthenticationUtil.getAuthenticator(kerberosPrincipal, kerberosKeytab);
@@ -137,6 +150,8 @@ public class HBaseSink extends AbstractSink implements Configurable {
       throw new FlumeException("Failed to login to HBase using "
           + "provided credentials.", ex);
     }
+
+    //在权限范围内获取要存储的hbase的table对象
     try {
       table = privilegedExecutor.execute(new PrivilegedExceptionAction<HTable>() {
         @Override
@@ -155,6 +170,8 @@ public class HBaseSink extends AbstractSink implements Configurable {
       throw new FlumeException("Could not load table, " + tableName +
           " from HBase", e);
     }
+
+    //确定有该family
     try {
       if (!privilegedExecutor.execute(new PrivilegedExceptionAction<Boolean>() {
         @Override
@@ -319,7 +336,7 @@ public class HBaseSink extends AbstractSink implements Configurable {
       for (; i < batchSize; i++) {
         Event event = channel.take();
         if (event == null) {
-          if (i == 0) {
+          if (i == 0) {//说明没有读取到任何事件
             status = Status.BACKOFF;
             sinkCounter.incrementBatchEmptyCount();
           } else {
@@ -364,6 +381,7 @@ public class HBaseSink extends AbstractSink implements Configurable {
     return status;
   }
 
+  //去做提交操作
   private void putEventsAndCommit(final List<Row> actions,
                                   final List<Increment> incs, Transaction txn) throws Exception {
 
@@ -372,6 +390,7 @@ public class HBaseSink extends AbstractSink implements Configurable {
       public Void run() throws Exception {
         for (Row r : actions) {
           if (r instanceof Put) {
+              //先记录日志
             ((Put) r).setWriteToWAL(enableWal);
           }
           // Newer versions of HBase - Increment implements Row.
@@ -379,6 +398,7 @@ public class HBaseSink extends AbstractSink implements Configurable {
             ((Increment) r).setWriteToWAL(enableWal);
           }
         }
+        //批量写入到table中
         table.batch(actions);
         return null;
       }

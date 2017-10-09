@@ -106,16 +106,16 @@ public class KafkaSink extends AbstractSink implements Configurable {
 
   private static final Logger logger = LoggerFactory.getLogger(KafkaSink.class);
 
-  private final Properties kafkaProps = new Properties();
-  private KafkaProducer<String, byte[]> producer;
+  private final Properties kafkaProps = new Properties();//kafka的配置信息
+  private KafkaProducer<String, byte[]> producer;//kafka的生产者
 
-  private String topic;
+  private String topic;//默认topic
   private int batchSize;
-  private List<Future<RecordMetadata>> kafkaFutures;
-  private KafkaSinkCounter counter;
+  private List<Future<RecordMetadata>> kafkaFutures;//发送给kafka的数据,临时存储
+  private KafkaSinkCounter counter;//统计对象
   private boolean useAvroEventFormat;
-  private String partitionHeader = null;
-  private Integer staticPartitionId = null;
+  private String partitionHeader = null;//在header中partitionId的key
+  private Integer staticPartitionId = null;//静态默认往哪个partitionId写入数据
   private Optional<SpecificDatumWriter<AvroFlumeEvent>> writer =
           Optional.absent();
   private Optional<SpecificDatumReader<AvroFlumeEvent>> reader =
@@ -143,35 +143,35 @@ public class KafkaSink extends AbstractSink implements Configurable {
     Channel channel = getChannel();
     Transaction transaction = null;
     Event event = null;
-    String eventTopic = null;
-    String eventKey = null;
+    String eventTopic = null;//从事件里面获取kafka的topic
+    String eventKey = null;//kafka的key
 
     try {
-      long processedEvents = 0;
+      long processedEvents = 0;//已经处理的事件数量
 
       transaction = channel.getTransaction();
       transaction.begin();
 
       kafkaFutures.clear();
       long batchStartTime = System.nanoTime();
-      for (; processedEvents < batchSize; processedEvents += 1) {
+      for (; processedEvents < batchSize; processedEvents += 1) {//不断的循环读取事件
         event = channel.take();
 
         if (event == null) {
           // no events available in channel
-          if (processedEvents == 0) {
+          if (processedEvents == 0) {//说明此时没有数据了
             result = Status.BACKOFF;
-            counter.incrementBatchEmptyCount();
+            counter.incrementBatchEmptyCount();//说明本次sink一个批处理内没有任何数据被take到
           } else {
-            counter.incrementBatchUnderflowCount();
+            counter.incrementBatchUnderflowCount();//说明本次sink一个批处理内有数据被读取到,但是数量不够batchSize
           }
           break;
         }
 
-        byte[] eventBody = event.getBody();
+        byte[] eventBody = event.getBody();//具体要写入kafka的value
         Map<String, String> headers = event.getHeaders();
 
-        eventTopic = headers.get(TOPIC_HEADER);
+        eventTopic = headers.get(TOPIC_HEADER);//从事件里面获取kafka的topic
         if (eventTopic == null) {
           eventTopic = topic;
         }
@@ -191,11 +191,12 @@ public class KafkaSink extends AbstractSink implements Configurable {
 
         Integer partitionId = null;
         try {
-          ProducerRecord<String, byte[]> record;
+          ProducerRecord<String, byte[]> record;//kafka写入的数据的key是String,value是字节数组类型数据
+          //获取该数据向哪个partition写入
           if (staticPartitionId != null) {
             partitionId = staticPartitionId;
           }
-          //Allow a specified header to override a static ID
+          //Allow a specified header to override a static ID 允许一个header去覆盖partition
           if (partitionHeader != null) {
             String headerVal = event.getHeaders().get(partitionHeader);
             if (headerVal != null) {
@@ -207,7 +208,7 @@ public class KafkaSink extends AbstractSink implements Configurable {
                 serializeEvent(event, useAvroEventFormat));
           } else {
             record = new ProducerRecord<String, byte[]>(eventTopic, eventKey,
-                serializeEvent(event, useAvroEventFormat));
+                serializeEvent(event, useAvroEventFormat));//如何将事件转换成字节数组
           }
           kafkaFutures.add(producer.send(record, new SinkCallback(startTime)));
         } catch (NumberFormatException ex) {
@@ -227,7 +228,7 @@ public class KafkaSink extends AbstractSink implements Configurable {
       if (processedEvents > 0) {
         for (Future<RecordMetadata> future : kafkaFutures) {
           future.get();
-        }
+        }//说明全部写入成功
         long endTime = System.nanoTime();
         counter.addToKafkaEventSendTimer((endTime - batchStartTime) / (1000 * 1000));
         counter.addToEventDrainSuccessCount(Long.valueOf(kafkaFutures.size()));
@@ -259,6 +260,7 @@ public class KafkaSink extends AbstractSink implements Configurable {
     return result;
   }
 
+  //创建kafka的生产者
   @Override
   public synchronized void start() {
     // instantiate the producer
@@ -278,6 +280,7 @@ public class KafkaSink extends AbstractSink implements Configurable {
 
   /**
    * We configure the sink and generate properties for the Kafka Producer
+   * 配置kafka的生产者
    *
    * Kafka producer properties is generated as follows:
    * 1. We generate a properties object with some static defaults that
@@ -288,11 +291,12 @@ public class KafkaSink extends AbstractSink implements Configurable {
    * properties
    *
    * @param context
+   *
    */
   @Override
   public void configure(Context context) {
 
-    translateOldProps(context);
+    translateOldProps(context);//将老配置转换成新配置
 
     String topicStr = context.getString(TOPIC_CONFIG);
     if (topicStr == null || topicStr.isEmpty()) {
@@ -338,17 +342,18 @@ public class KafkaSink extends AbstractSink implements Configurable {
     }
   }
 
+    //将老属性转换成新属性
   private void translateOldProps(Context ctx) {
 
-    if (!(ctx.containsKey(TOPIC_CONFIG))) {
+    if (!(ctx.containsKey(TOPIC_CONFIG))) {//存储kafka的topic
       ctx.put(TOPIC_CONFIG, ctx.getString("topic"));
       logger.warn("{} is deprecated. Please use the parameter {}", "topic", TOPIC_CONFIG);
     }
 
     //Broker List
     // If there is no value we need to check and set the old param and log a warning message
-    if (!(ctx.containsKey(BOOTSTRAP_SERVERS_CONFIG))) {
-      String brokerList = ctx.getString(BROKER_LIST_FLUME_KEY);
+    if (!(ctx.containsKey(BOOTSTRAP_SERVERS_CONFIG))) {//kafka.bootstrap.servers 用于存储kafka的节点集合的key
+      String brokerList = ctx.getString(BROKER_LIST_FLUME_KEY);//老属性配置brokerList
       if (brokerList == null || brokerList.isEmpty()) {
         throw new ConfigurationException("Bootstrap Servers must be specified");
       } else {
@@ -368,7 +373,7 @@ public class KafkaSink extends AbstractSink implements Configurable {
     }
 
     // Acks
-    if (!(ctx.containsKey(KAFKA_PRODUCER_PREFIX + ProducerConfig.ACKS_CONFIG))) {
+    if (!(ctx.containsKey(KAFKA_PRODUCER_PREFIX + ProducerConfig.ACKS_CONFIG))) {//kafka.producer.acks
       String requiredKey = ctx.getString(
               KafkaSinkConstants.REQUIRED_ACKS_FLUME_KEY);
       if (!(requiredKey == null) && !(requiredKey.isEmpty())) {
@@ -378,6 +383,7 @@ public class KafkaSink extends AbstractSink implements Configurable {
       }
     }
 
+    //声明老的key和value的序列化方式过期了
     if (ctx.containsKey(KEY_SERIALIZER_KEY )) {
       logger.warn("{} is deprecated. Flume now uses the latest Kafka producer which implements " +
           "a different interface for serializers. Please use the parameter {}",
@@ -405,9 +411,10 @@ public class KafkaSink extends AbstractSink implements Configurable {
     return kafkaProps;
   }
 
+  //如何将事件转换成字节数组
   private byte[] serializeEvent(Event event, boolean useAvroEventFormat) throws IOException {
     byte[] bytes;
-    if (useAvroEventFormat) {
+    if (useAvroEventFormat) {//使用avro方式
       if (!tempOutStream.isPresent()) {
         tempOutStream = Optional.of(new ByteArrayOutputStream());
       }
@@ -421,7 +428,7 @@ public class KafkaSink extends AbstractSink implements Configurable {
       writer.get().write(e, encoder);
       encoder.flush();
       bytes = tempOutStream.get().toByteArray();
-    } else {
+    } else {//正常事件本身就是字节数组
       bytes = event.getBody();
     }
     return bytes;
@@ -437,6 +444,7 @@ public class KafkaSink extends AbstractSink implements Configurable {
 
 }
 
+//回调---生产者出现问题的时候,记录日志
 class SinkCallback implements Callback {
   private static final Logger logger = LoggerFactory.getLogger(SinkCallback.class);
   private long startTime;

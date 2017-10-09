@@ -25,21 +25,26 @@ import java.util.UUID;
 /**
  * Utility class for users to generate their own keys. Any key can be used,
  * this is just a utility that provides a set of simple keys.
+ * 产生rowkey的生产器
  */
 public class SimpleRowKeyGenerator {
 
+  //随机产生UUID作为rowkey
   public static byte[] getUUIDKey(String prefix) throws UnsupportedEncodingException {
     return (prefix + UUID.randomUUID().toString()).getBytes("UTF8");
   }
 
+  //随机产生UUID作为rowkey
   public static byte[] getRandomKey(String prefix) throws UnsupportedEncodingException {
     return (prefix + String.valueOf(new Random().nextLong())).getBytes("UTF8");
   }
 
+  //根据时间戳产生rowkey
   public static byte[] getTimestampKey(String prefix) throws UnsupportedEncodingException {
     return (prefix + String.valueOf(System.currentTimeMillis())).getBytes("UTF8");
   }
 
+  //根据微秒的时间戳产生rowkey
   public static byte[] getNanoTimestampKey(String prefix) throws UnsupportedEncodingException {
     return (prefix + String.valueOf(System.nanoTime())).getBytes("UTF8");
   }

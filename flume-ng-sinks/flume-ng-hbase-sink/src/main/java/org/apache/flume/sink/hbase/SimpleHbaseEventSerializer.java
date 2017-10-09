@@ -46,15 +46,17 @@ import java.util.List;
  * event data will not be written.<p>
  * <tt>incColumn:</tt> Which column to increment. Null means no column is
  * incremented.
+ *
+ * 如何对一个事件进行序列化,让hbase接受序列化后的信息
  */
 public class SimpleHbaseEventSerializer implements HbaseEventSerializer {
-  private String rowPrefix;
+  private String rowPrefix;//rowkey生成前缀
   private byte[] incrementRow;
-  private byte[] cf;
-  private byte[] plCol;
-  private byte[] incCol;
-  private KeyType keyType;
-  private byte[] payload;
+  private byte[] cf;//family列族
+  private byte[] plCol;//一个列族下具体的列
+  private byte[] incCol;//计数器对应的列
+  private KeyType keyType;//如何生成rowkey的规则
+  private byte[] payload;//具体的value
 
   public SimpleHbaseEventSerializer() {
   }
@@ -89,17 +91,19 @@ public class SimpleHbaseEventSerializer implements HbaseEventSerializer {
   public void configure(ComponentConfiguration conf) {
   }
 
+  //初始化该事件以及对应的列族family
   @Override
   public void initialize(Event event, byte[] cf) {
     this.payload = event.getBody();
     this.cf = cf;
   }
 
+  //一次添加多行数据,其实就是产生一行数据对象
   @Override
   public List<Row> getActions() throws FlumeException {
     List<Row> actions = new LinkedList<Row>();
     if (plCol != null) {
-      byte[] rowKey;
+      byte[] rowKey;//创建rowkey
       try {
         if (keyType == KeyType.TS) {
           rowKey = SimpleRowKeyGenerator.getTimestampKey(rowPrefix);
@@ -136,6 +140,7 @@ public class SimpleHbaseEventSerializer implements HbaseEventSerializer {
   public void close() {
   }
 
+  //rowkey的自动产生方式
   public enum KeyType {
     UUID,
     RANDOM,

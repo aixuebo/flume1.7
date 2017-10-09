@@ -49,26 +49,30 @@ import java.util.regex.Pattern;
  * identifier which enforces uniqueness of keys across flume agents.
  * <p>
  * See static constant variables for configuration options.
+ *
+ * 如何序列化一个事件,将其序列化成hbase可以接收的rowkey对象
+ *
+ * 向一个family中添加多个列对应的值,每一个列的值是通过正则表达式去解析出来的。rowkey也是解析出来的
  */
 public class RegexHbaseEventSerializer implements HbaseEventSerializer {
   // Config vars
   /** Regular expression used to parse groups from event data. */
-  public static final String REGEX_CONFIG = "regex";
-  public static final String REGEX_DEFAULT = "(.*)";
+  public static final String REGEX_CONFIG = "regex";//正则表达式对应的key
+  public static final String REGEX_DEFAULT = "(.*)";//默认的正则表达式
 
   /** Whether to ignore case when performing regex matches. */
-  public static final String IGNORE_CASE_CONFIG = "regexIgnoreCase";
+  public static final String IGNORE_CASE_CONFIG = "regexIgnoreCase";//是否忽略大小写
   public static final boolean INGORE_CASE_DEFAULT = false;
 
   /** Comma separated list of column names to place matching groups in. */
-  public static final String COL_NAME_CONFIG = "colNames";
+  public static final String COL_NAME_CONFIG = "colNames";//解析列名字集合
   public static final String COLUMN_NAME_DEFAULT = "payload";
 
   /** Index of the row key in matched regex groups */
   public static final String ROW_KEY_INDEX_CONFIG = "rowKeyIndex";
 
   /** Placeholder in colNames for row key */
-  public static final String ROW_KEY_NAME = "ROW_KEY";
+  public static final String ROW_KEY_NAME = "ROW_KEY";//rowkey不能是这个名字
 
   /** Whether to deposit event headers into corresponding column qualifiers */
   public static final String DEPOSIT_HEADERS_CONFIG = "depositHeaders";
@@ -83,15 +87,15 @@ public class RegexHbaseEventSerializer implements HbaseEventSerializer {
   protected static final AtomicInteger nonce = new AtomicInteger(0);
   protected static String randomKey = RandomStringUtils.randomAlphanumeric(10);
 
-  protected byte[] cf;
-  private byte[] payload;
-  private List<byte[]> colNames = Lists.newArrayList();
-  private Map<String, String> headers;
-  private boolean regexIgnoreCase;
-  private boolean depositHeaders;
-  private Pattern inputPattern;
+  protected byte[] cf;//hbase的family
+  private byte[] payload;//存储到hbase的具体value
+  private List<byte[]> colNames = Lists.newArrayList();//正则表达式需要的列集合
+  private Map<String, String> headers;//事件的header集合
+  private boolean regexIgnoreCase;//是否忽略大小写
+  private boolean depositHeaders;//true表示header也要作为hbase的列添加到hbase中
+  private Pattern inputPattern;//具体的正则表达式对象
   private Charset charset;
-  private int rowKeyIndex;
+  private int rowKeyIndex;//rowkey的下标
 
   @Override
   public void configure(Context context) {
@@ -140,6 +144,7 @@ public class RegexHbaseEventSerializer implements HbaseEventSerializer {
   /**
    * Returns a row-key with the following format:
    * [time in millis]-[random key]-[nonce]
+   * 产生一个rowkey
    */
   protected byte[] getRowKey(Calendar cal) {
     /* NOTE: This key generation strategy has the following properties:
@@ -189,7 +194,7 @@ public class RegexHbaseEventSerializer implements HbaseEventSerializer {
 
       for (int i = 0; i < colNames.size(); i++) {
         if (i != rowKeyIndex) {
-          put.add(cf, colNames.get(i), m.group(i + 1).getBytes(Charsets.UTF_8));
+          put.add(cf, colNames.get(i), m.group(i + 1).getBytes(Charsets.UTF_8));//该family的某一个列,添加具体的值
         }
       }
       if (depositHeaders) {

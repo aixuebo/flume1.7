@@ -77,6 +77,6 @@ public interface Sink extends LifecycleAware, NamedComponent {
 
   public static enum Status {
     READY,
-    BACKOFF//说明此时sink有问题,要下线
+    BACKOFF//说明此时sink没有数据读取出来,或者有异常出现
   }
 }

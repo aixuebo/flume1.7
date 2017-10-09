@@ -32,12 +32,14 @@ import org.apache.hadoop.hbase.client.Row;
  * params required should be taken through this. Only the column family is
  * passed in. The columns should exist in the table and column family
  * specified in the configuration for the HbaseSink.
+ * 如何序列化一个事件,将其序列化成hbase可以接收的rowkey对象
  */
 public interface HbaseEventSerializer extends Configurable, ConfigurableComponent {
   /**
    * Initialize the event serializer.
-   * @param event Event to be written to HBase
-   * @param columnFamily Column family to write to
+   * 初始化操作
+   * @param event Event to be written to HBase 要写入到hbase的事件
+   * @param columnFamily Column family to write to 要写入到那个family里面
    */
   public void initialize(Event event, byte[] columnFamily);
 
@@ -48,7 +50,7 @@ public interface HbaseEventSerializer extends Configurable, ConfigurableComponen
    * are written as such to HBase.
    *
    * 0.92 increments do not implement Row, so this is not generic.
-   *
+   * 一个事件可以写成多行数据
    */
   public List<Row> getActions();
 

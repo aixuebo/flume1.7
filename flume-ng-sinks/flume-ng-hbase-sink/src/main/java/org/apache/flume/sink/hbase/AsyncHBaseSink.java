@@ -64,8 +64,12 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * A simple sink which reads events from a channel and writes them to HBase.
+ * 从channel中读取数据,写入到hbase中
+ *
  * This Sink uses an asynchronous API internally and is likely to
  * perform better.
+ * 该sink性能更好,因为是异步操作的
+ *
  * The Hbase configuration is picked up from the first <tt>hbase-site.xml</tt>
  * encountered in the classpath. This sink supports batch reading of
  * events from the channel, and writing them to Hbase, to minimize the number
@@ -90,11 +94,19 @@ import java.util.concurrent.locks.ReentrantLock;
  * callbacks from hbase for all events in a transaction.
  * If no timeout is specified, the sink will wait forever.<p>
  * <p>
+ *
+ *
  * <strong>Note: </strong> Hbase does not guarantee atomic commits on multiple
- * rows. So if a subset of events in a batch are written to disk by Hbase and
+ * rows.
+ * 注意:在一个事务内,这个sink将所有事件都发送到habse中,hbase不保证会将多行数据都原子提交给hbase.
+ *
+ * So if a subset of events in a batch are written to disk by Hbase and
  * Hbase fails, the flume transaction is rolled back, causing flume to write
  * all the events in the transaction all over again, which will cause
- * duplicates. The serializer is expected to take care of the handling of
+ * duplicates.
+ * 所以如果通过hbase写入到磁盘了,但是一部分失败了,因此该flume事务会回滚,此时会造成数据重复,因为下一次会将写入成功的又写入了一遍。
+ *
+ * The serializer is expected to take care of the handling of
  * duplicates etc. HBase also does not support batch increments, so if
  * multiple increments are returned by the serializer, then HBase failure
  * will cause them to be re-written, when HBase comes back up.

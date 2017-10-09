@@ -32,10 +32,10 @@ public class SinkCounter extends MonitoredCounterGroup implements
       "sink.connection.failed.count";
 
   private static final String COUNTER_BATCH_EMPTY =
-      "sink.batch.empty";
+      "sink.batch.empty";//说明本次sink一个批处理内没有任何数据被take到
 
   private static final String COUNTER_BATCH_UNDERFLOW =
-      "sink.batch.underflow";
+      "sink.batch.underflow";//说明本次sink一个批处理内有数据被读取到,但是数量不够batchSize
 
   private static final String COUNTER_BATCH_COMPLETE =
       "sink.batch.complete";
