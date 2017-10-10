@@ -64,11 +64,13 @@ public class HDFSSequenceFile extends AbstractHDFSWriter {
         + useRawLocalFileSystem);
   }
 
+  //默认不压缩的写入到文件中
   @Override
   public void open(String filePath) throws IOException {
     open(filePath, null, CompressionType.NONE);
   }
 
+  //使用什么压缩算法,采用什么压缩方式,比如块压缩等,将事件序列化后写入到文件中
   @Override
   public void open(String filePath, CompressionCodec codeC,
       CompressionType compType) throws IOException {

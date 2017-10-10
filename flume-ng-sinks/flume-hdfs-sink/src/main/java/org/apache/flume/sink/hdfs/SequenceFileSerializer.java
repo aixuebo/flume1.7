@@ -21,8 +21,10 @@ package org.apache.flume.sink.hdfs;
 import org.apache.flume.Context;
 import org.apache.flume.Event;
 
+//如何对事件进行序列化
 public interface SequenceFileSerializer {
 
+  //因为HDFS上存储的是key和value,因此要知道key和value的类型
   Class<?> getKeyClass();
 
   Class<?> getValueClass();
@@ -33,6 +35,7 @@ public interface SequenceFileSerializer {
    * @param e
    *         event
    * @return a list of records corresponding to the given event
+   * 如何对一个事件进行序列化,有时候一个事件可以返回多条记录
    */
   Iterable<Record> serialize(Event e);
 
@@ -46,6 +49,7 @@ public interface SequenceFileSerializer {
 
   /**
    * A key-value pair making up a record in an HDFS SequenceFile
+   * 表示要存储的key和value对应的值,因为key和value的类型可能各种各样,因此返回值都是object类型的
    */
   public static class Record {
     private final Object key;

@@ -172,13 +172,15 @@ public class PropertiesFileConfigurationProvider extends
   private static final Logger LOGGER = LoggerFactory
       .getLogger(PropertiesFileConfigurationProvider.class);
 
-  private final File file;
+  private final File file;//代理对应的配置文件
 
+  //代理的name以及对应的配置文件
   public PropertiesFileConfigurationProvider(String agentName, File file) {
     super(agentName);
     this.file = file;
   }
 
+  //将文件的内容转换成Map对象,然后配置成FlumeConfiguration配置对象
   @Override
   public FlumeConfiguration getFlumeConfiguration() {
     BufferedReader reader = null;

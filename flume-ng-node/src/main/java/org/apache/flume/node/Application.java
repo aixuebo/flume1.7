@@ -53,6 +53,7 @@ import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 
+//应用的入口
 public class Application {
 
   private static final Logger logger = LoggerFactory
@@ -61,7 +62,7 @@ public class Application {
   public static final String CONF_MONITOR_CLASS = "flume.monitoring.type";
   public static final String CONF_MONITOR_PREFIX = "flume.monitoring.";
 
-  private final List<LifecycleAware> components;
+  private final List<LifecycleAware> components;//持有若干个生命周期的对象集合
   private final LifecycleSupervisor supervisor;
   private MaterializedConfiguration materializedConfiguration;
   private MonitorService monitorServer;
@@ -70,6 +71,7 @@ public class Application {
     this(new ArrayList<LifecycleAware>(0));
   }
 
+  //持有若干个生命周期的对象集合
   public Application(List<LifecycleAware> components) {
     this.components = components;
     supervisor = new LifecycleSupervisor();
@@ -224,11 +226,18 @@ public class Application {
 
   }
 
+    /**
+     * bin/flume-ng agent
+     * --conf ./conf/
+     * -f conf/flume.conf
+     * -Dflume.root.logger=DEBUG,console
+     * -n agent1
+     */
   public static void main(String[] args) {
 
     try {
 
-      boolean isZkConfigured = false;
+      boolean isZkConfigured = false;//true表示使用zookeeper去加载配置信息
 
       Options options = new Options();
 
@@ -236,21 +245,24 @@ public class Application {
       option.setRequired(true);
       options.addOption(option);
 
+      //设置配置文件的绝对路径
       option = new Option("f", "conf-file", true,
           "specify a config file (required if -z missing)");
       option.setRequired(false);
       options.addOption(option);
 
+      //如果设置该参数,表示配置文件更改了也不用重新加载
       option = new Option(null, "no-reload-conf", false,
           "do not reload config file if changed");
       options.addOption(option);
 
-      // Options for Zookeeper
+      // Options for Zookeeper 如何连接zookeeper
       option = new Option("z", "zkConnString", true,
           "specify the ZooKeeper connection to use (required if -f missing)");
       option.setRequired(false);
       options.addOption(option);
 
+      //指定zookeeper上配置文件的基础路径
       option = new Option("p", "zkBasePath", true,
           "specify the base path in ZooKeeper for agent configs");
       option.setRequired(false);
@@ -268,18 +280,18 @@ public class Application {
       }
 
       String agentName = commandLine.getOptionValue('n');
-      boolean reload = !commandLine.hasOption("no-reload-conf");
+      boolean reload = !commandLine.hasOption("no-reload-conf");//true表示要动态加载conf配置文件的更改
 
       if (commandLine.hasOption('z') || commandLine.hasOption("zkConnString")) {
         isZkConfigured = true;
       }
       Application application = null;
-      if (isZkConfigured) {
+      if (isZkConfigured) {//使用zookeeper加载配置文件
         // get options
         String zkConnectionStr = commandLine.getOptionValue('z');
         String baseZkPath = commandLine.getOptionValue('p');
 
-        if (reload) {
+        if (reload) {//需要动态加载配置文件的更改
           EventBus eventBus = new EventBus(agentName + "-event-bus");
           List<LifecycleAware> components = Lists.newArrayList();
           PollingZooKeeperConfigurationProvider zookeeperConfigurationProvider =
@@ -288,14 +300,12 @@ public class Application {
           components.add(zookeeperConfigurationProvider);
           application = new Application(components);
           eventBus.register(application);
-        } else {
-          StaticZooKeeperConfigurationProvider zookeeperConfigurationProvider =
-              new StaticZooKeeperConfigurationProvider(
-                  agentName, zkConnectionStr, baseZkPath);
+        } else {//不需要动态加载配置文件的更改
+          StaticZooKeeperConfigurationProvider zookeeperConfigurationProvider = new StaticZooKeeperConfigurationProvider(agentName, zkConnectionStr, baseZkPath);//如何读取静态的zookeeper文件
           application = new Application();
           application.handleConfigurationEvent(zookeeperConfigurationProvider.getConfiguration());
         }
-      } else {
+      } else {//读取配置文件
         File configurationFile = new File(commandLine.getOptionValue('f'));
 
         /*

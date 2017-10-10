@@ -24,12 +24,19 @@ import org.apache.flume.conf.FlumeConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+//如何读取静态的zookeeper文件
 public class StaticZooKeeperConfigurationProvider extends
     AbstractZooKeeperConfigurationProvider {
 
   private static final Logger LOGGER = LoggerFactory
       .getLogger(StaticZooKeeperConfigurationProvider.class);
 
+    /**
+     *
+     * @param agentName 代理的name
+     * @param zkConnString zookeeper的地址
+     * @param basePath 在zookeeper的什么路径下有配置信息
+     */
   public StaticZooKeeperConfigurationProvider(String agentName,
       String zkConnString, String basePath) {
     super(agentName, zkConnString, basePath);

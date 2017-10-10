@@ -69,7 +69,9 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
 
   private static final Logger LOGGER = LoggerFactory.getLogger(AbstractConfigurationProvider.class);
 
-  private final String agentName;
+  private final String agentName;//代理的name
+
+  //三个工厂,分别创建source、sink、channel
   private final SourceFactory sourceFactory;
   private final SinkFactory sinkFactory;
   private final ChannelFactory channelFactory;
@@ -86,6 +88,7 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
     channelCache = new HashMap<Class<? extends Channel>, Map<String, Channel>>();
   }
 
+  //获取配置信息
   protected abstract FlumeConfiguration getFlumeConfiguration();
 
   public MaterializedConfiguration getConfiguration() {
@@ -501,6 +504,7 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
     }
   }
 
+  //将Properties对象转换成Map对象
   protected Map<String, String> toMap(Properties properties) {
     Map<String, String> result = Maps.newHashMap();
     Enumeration<?> propertyNames = properties.propertyNames();

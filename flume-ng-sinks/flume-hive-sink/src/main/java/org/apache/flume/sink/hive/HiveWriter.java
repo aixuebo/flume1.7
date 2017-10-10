@@ -46,8 +46,8 @@ class HiveWriter {
 
   private static final Logger LOG = LoggerFactory.getLogger(HiveWriter.class);
 
-  private final HiveEndPoint endPoint;
-  private HiveEventSerializer serializer;
+  private final HiveEndPoint endPoint;//表示向哪个表的哪个分区写入数据
+  private HiveEventSerializer serializer;//使用什么数据进行序列化操作
   private final StreamingConnection connection;
   private final int txnsPerBatch;
   private final RecordWriter recordWriter;
@@ -55,22 +55,22 @@ class HiveWriter {
 
   private final ExecutorService callTimeoutPool;
 
-  private final long callTimeout;
+  private final long callTimeout;//获取一个结果的超时时间
 
   private long lastUsed; // time of last flush on this writer
 
   private SinkCounter sinkCounter;
   private int batchCounter;
-  private long eventCounter;
-  private long processSize;
+  private long eventCounter;//处理多少个事件
+  private long processSize;//事件的body的size总和
 
   protected boolean closed; // flag indicating HiveWriter was closed
   private boolean autoCreatePartitions;
 
   private boolean hearbeatNeeded = false;
 
-  private final int writeBatchSz = 1000;
-  private ArrayList<Event> batch = new ArrayList<Event>(writeBatchSz);
+  private final int writeBatchSz = 1000;//默认的批次大小
+  private ArrayList<Event> batch = new ArrayList<Event>(writeBatchSz);//缓存一个批次内的事件集合
 
   HiveWriter(HiveEndPoint endPoint, int txnsPerBatch,
              boolean autoCreatePartitions, long callTimeout,
@@ -146,6 +146,7 @@ class HiveWriter {
     eventCounter++;
   }
 
+  //处理一个批次的数据
   private void writeEventBatchToSerializer()
       throws InterruptedException, WriteException {
     try {
@@ -183,7 +184,7 @@ class HiveWriter {
       throws CommitException, TxnBatchException, TxnFailure, InterruptedException,
       WriteException {
     if (!batch.isEmpty()) {
-      writeEventBatchToSerializer();
+      writeEventBatchToSerializer();//写入数据到hive
       batch.clear();
     }
 
@@ -429,6 +430,7 @@ class HiveWriter {
       }
     });
 
+    //单位时间内要获取到结果
     try {
       if (callTimeout > 0) {
         return future.get(callTimeout, TimeUnit.MILLISECONDS);
@@ -481,6 +483,7 @@ class HiveWriter {
     }
   }
 
+  //记录写入到哪个终端,哪个事务出现异常,异常原因是什么
   public static class WriteException extends Failure {
     public WriteException(HiveEndPoint endPoint, Long currentTxnId, Throwable cause) {
       super("Failed writing to : " + endPoint + ". TxnID : " + currentTxnId, cause);

@@ -61,34 +61,34 @@ public class HiveSink extends AbstractSink implements Configurable {
   private static final int DEFAULT_IDLETIMEOUT = 0;
   private static final int DEFAULT_HEARTBEATINTERVAL = 240; // seconds
 
-  private Map<HiveEndPoint, HiveWriter> allWriters;
+  private Map<HiveEndPoint, HiveWriter> allWriters;//key表示向哪个表的哪个分区写入数据,value是对应的writer对象
 
   private SinkCounter sinkCounter;
-  private volatile int idleTimeout;
-  private String metaStoreUri;
-  private String proxyUser;
-  private String database;
-  private String table;
-  private List<String> partitionVals;
+  private volatile int idleTimeout;//关闭掉很久不实用的终端,超过这个时间段内都没有被使用的终端,将会被关闭
+  private String metaStoreUri;//hive的元数据
+  private String proxyUser;//代理用户
+  private String database;//要登录的hive的数据库
+  private String table;//hive的数据表
+  private List<String> partitionVals;//partition的name集合
   private Integer txnsPerBatchAsk;
   private Integer batchSize;
-  private Integer maxOpenConnections;
+  private Integer maxOpenConnections;//最多连接几个终端
   private boolean autoCreatePartitions;
-  private String serializerType;
-  private HiveEventSerializer serializer;
+  private String serializerType;//用哪个类进行序列化转换
+  private HiveEventSerializer serializer;//用哪个类进行序列化转换对应的实例
 
   /**
    * Default timeout for blocking I/O calls in HiveWriter
    */
   private Integer callTimeout;
-  private Integer heartBeatInterval;
+  private Integer heartBeatInterval;//心跳间隔,单位毫秒
 
   private ExecutorService callTimeoutPool;
 
-  private boolean useLocalTime;
+  private boolean useLocalTime;//是否使用本地时间
   private TimeZone timeZone;
-  private boolean needRounding;
-  private int roundUnit;
+  private boolean needRounding;//是否需要滚动切换,true表示滚动切换
+  private int roundUnit;//滚动切换的单位
   private Integer roundValue;
 
   private Timer heartBeatTimer = new Timer();
@@ -193,6 +193,7 @@ public class HiveSink extends AbstractSink implements Configurable {
     }
 
     // Serializer
+      //用哪个类进行序列化转换
     serializerType = context.getString(Config.SERIALIZER, "");
     if (serializerType.isEmpty()) {
       throw new IllegalArgumentException("serializer config setting is not " +
@@ -213,6 +214,8 @@ public class HiveSink extends AbstractSink implements Configurable {
   protected SinkCounter getCounter() {
     return sinkCounter;
   }
+
+  //可以自定义序列化类
   private HiveEventSerializer createSerializer(String serializerName)  {
     if (serializerName.compareToIgnoreCase(HiveDelimitedTextSerializer.ALIAS) == 0 ||
         serializerName.compareTo(HiveDelimitedTextSerializer.class.getName()) == 0) {
@@ -244,7 +247,7 @@ public class HiveSink extends AbstractSink implements Configurable {
     transaction.begin();
     boolean success = false;
     try {
-      // 1 Enable Heart Beats
+      // 1 Enable Heart Beats 说明该发送心跳了
       if (timeToSendHeartBeat.compareAndSet(true, false)) {
         enableHeartBeatOnAllWriters();
       }
@@ -289,12 +292,12 @@ public class HiveSink extends AbstractSink implements Configurable {
         //1) Create end point by substituting place holders
         HiveEndPoint endPoint = makeEndPoint(metaStoreUri, database, table,
                 partitionVals, event.getHeaders(), timeZone,
-                needRounding, roundUnit, roundValue, useLocalTime);
+                needRounding, roundUnit, roundValue, useLocalTime);//返回向哪个表的哪个分区写入数据
 
-        //2) Create or reuse Writer
+        //2) Create or reuse Writer 创建或者获取一个已经存在的writer对象
         HiveWriter writer = getOrCreateWriter(activeWriters, endPoint);
 
-        //3) Write
+        //3) Write 向writer中写入该事件
         LOG.debug("{} : Writing event to {}", getName(), endPoint);
         writer.write(event);
 
@@ -327,33 +330,35 @@ public class HiveSink extends AbstractSink implements Configurable {
     }
   }
 
+  //发送每一个心跳
   private void enableHeartBeatOnAllWriters() {
     for (HiveWriter writer : allWriters.values()) {
       writer.setHearbeatNeeded();
     }
   }
 
+  //创建或者获取一个已经存在的writer对象
   private HiveWriter getOrCreateWriter(Map<HiveEndPoint, HiveWriter> activeWriters,
                                        HiveEndPoint endPoint)
           throws HiveWriter.ConnectException, InterruptedException {
     try {
-      HiveWriter writer = allWriters.get( endPoint );
+      HiveWriter writer = allWriters.get( endPoint );//查找该writer对象
       if (writer == null) {
         LOG.info(getName() + ": Creating Writer to Hive end point : " + endPoint);
         writer = new HiveWriter(endPoint, txnsPerBatchAsk, autoCreatePartitions,
-                callTimeout, callTimeoutPool, proxyUser, serializer, sinkCounter);
+                callTimeout, callTimeoutPool, proxyUser, serializer, sinkCounter);//创建一个writer对象
 
         sinkCounter.incrementConnectionCreatedCount();
-        if (allWriters.size() > maxOpenConnections) {
-          int retired = closeIdleWriters();
-          if (retired == 0) {
-            closeEldestWriter();
+        if (allWriters.size() > maxOpenConnections) {//说明终端打开的太多了
+          int retired = closeIdleWriters();//返回有多少个终端已经被关闭了
+          if (retired == 0) {//说明没有终端超时,因此没有关闭任何终端
+            closeEldestWriter();//关闭最久没有被使用的终端
           }
         }
         allWriters.put(endPoint, writer);
         activeWriters.put(endPoint, writer);
       } else {
-        if (activeWriters.get(endPoint) == null)  {
+        if (activeWriters.get(endPoint) == null)  {//让该writer活跃起来
           activeWriters.put(endPoint,writer);
         }
       }
@@ -365,6 +370,7 @@ public class HiveSink extends AbstractSink implements Configurable {
 
   }
 
+  //返回向哪个表的哪个分区写入数据
   private HiveEndPoint makeEndPoint(String metaStoreUri, String database, String table,
                                     List<String> partVals, Map<String, String> headers,
                                     TimeZone timeZone, boolean needRounding,
@@ -384,6 +390,7 @@ public class HiveSink extends AbstractSink implements Configurable {
 
   /**
    * Locate writer that has not been used for longest time and retire it
+   * 关闭最久没有被使用的终端
    */
   private void closeEldestWriter() throws InterruptedException {
     long oldestTimeStamp = System.currentTimeMillis();
@@ -409,15 +416,16 @@ public class HiveSink extends AbstractSink implements Configurable {
   /**
    * Locate all writers past idle timeout and retire them
    * @return number of writers retired
+   * 关闭掉很久不实用的终端
    */
   private int closeIdleWriters() throws InterruptedException {
     int count = 0;
     long now = System.currentTimeMillis();
-    ArrayList<HiveEndPoint> retirees = Lists.newArrayList();
+    ArrayList<HiveEndPoint> retirees = Lists.newArrayList();//退休的终端集合,即已经很久不被使用的终端集合
 
     //1) Find retirement candidates
     for (Entry<HiveEndPoint,HiveWriter> entry : allWriters.entrySet()) {
-      if (now - entry.getValue().getLastUsed() > idleTimeout) {
+      if (now - entry.getValue().getLastUsed() > idleTimeout) {//说明超过了超时时间
         ++count;
         retirees.add(entry.getKey());
       }
@@ -426,7 +434,7 @@ public class HiveSink extends AbstractSink implements Configurable {
     for (HiveEndPoint ep : retirees) {
       sinkCounter.incrementConnectionClosedCount();
       LOG.info(getName() + ": Closing idle Writer to Hive end point : {}", ep);
-      allWriters.remove(ep).close();
+      allWriters.remove(ep).close();//关闭该终端
     }
     return count;
   }
@@ -434,6 +442,7 @@ public class HiveSink extends AbstractSink implements Configurable {
   /**
    * Closes all writers and remove them from cache
    * @return number of writers retired
+   * 关闭所有的writer
    */
   private void closeAllWriters() throws InterruptedException {
     //1) Retire writers
@@ -500,6 +509,7 @@ public class HiveSink extends AbstractSink implements Configurable {
     LOG.info(getName() + ": Hive Sink {} started", getName() );
   }
 
+  //设置心跳
   private void setupHeartBeatTimer() {
     if (heartBeatInterval > 0) {
       heartBeatTimer.schedule(new TimerTask() {

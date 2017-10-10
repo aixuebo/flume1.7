@@ -72,17 +72,17 @@ public class AvroEventSerializer implements EventSerializer, Configurable {
   private static final Logger logger =
       LoggerFactory.getLogger(AvroEventSerializer.class);
 
-  public static final String AVRO_SCHEMA_LITERAL_HEADER = "flume.avro.schema.literal";
-  public static final String AVRO_SCHEMA_URL_HEADER = "flume.avro.schema.url";
+  public static final String AVRO_SCHEMA_LITERAL_HEADER = "flume.avro.schema.literal";//从header中获取schema的字符串形式
+  public static final String AVRO_SCHEMA_URL_HEADER = "flume.avro.schema.url";//从header中获取schema的url
 
-  private final OutputStream out;
+  private final OutputStream out;//真正最底层的输出流对象
   private DatumWriter<Object> writer = null;
   private DataFileWriter<Object> dataFileWriter = null;
 
-  private int syncIntervalBytes;
-  private String compressionCodec;
-  private Map<String, Schema> schemaCache = new HashMap<String, Schema>();
-  private String staticSchemaURL;
+  private int syncIntervalBytes;//同步间隔
+  private String compressionCodec;//压缩算法
+  private Map<String, Schema> schemaCache = new HashMap<String, Schema>();//每一个url对应的schema要被缓存起来
+  private String staticSchemaURL;//schema的url
 
   private AvroEventSerializer(OutputStream out) {
     this.out = out;
@@ -91,10 +91,10 @@ public class AvroEventSerializer implements EventSerializer, Configurable {
   @Override
   public void configure(Context context) {
     syncIntervalBytes =
-        context.getInteger(SYNC_INTERVAL_BYTES, DEFAULT_SYNC_INTERVAL_BYTES);
+        context.getInteger(SYNC_INTERVAL_BYTES, DEFAULT_SYNC_INTERVAL_BYTES);//同步间隔
     compressionCodec =
-        context.getString(COMPRESSION_CODEC, DEFAULT_COMPRESSION_CODEC);
-    staticSchemaURL = context.getString(STATIC_SCHEMA_URL, DEFAULT_STATIC_SCHEMA_URL);
+        context.getString(COMPRESSION_CODEC, DEFAULT_COMPRESSION_CODEC);//压缩算法
+    staticSchemaURL = context.getString(STATIC_SCHEMA_URL, DEFAULT_STATIC_SCHEMA_URL);//schema的url
   }
 
   @Override
@@ -113,24 +113,24 @@ public class AvroEventSerializer implements EventSerializer, Configurable {
     if (dataFileWriter == null) {
       initialize(event);
     }
-    dataFileWriter.appendEncoded(ByteBuffer.wrap(event.getBody()));
+    dataFileWriter.appendEncoded(ByteBuffer.wrap(event.getBody()));//将事件的body内容输出给writger
   }
 
   private void initialize(Event event) throws IOException {
     Schema schema = null;
-    String schemaUrl = event.getHeaders().get(AVRO_SCHEMA_URL_HEADER);
-    String schemaString = event.getHeaders().get(AVRO_SCHEMA_LITERAL_HEADER);
+    String schemaUrl = event.getHeaders().get(AVRO_SCHEMA_URL_HEADER);//从header中获取schema的url
+    String schemaString = event.getHeaders().get(AVRO_SCHEMA_LITERAL_HEADER);//从header中获取schema的字符串形式
 
     if (schemaUrl != null) { // if URL_HEADER is there then use it
-      schema = schemaCache.get(schemaUrl);
+      schema = schemaCache.get(schemaUrl);//从缓存中获取schema
       if (schema == null) {
-        schema = loadFromUrl(schemaUrl);
+        schema = loadFromUrl(schemaUrl);//重新加载一个schema
         schemaCache.put(schemaUrl, schema);
       }
     } else if (schemaString != null) { // fallback to LITERAL_HEADER if it was there
-      schema = new Schema.Parser().parse(schemaString);
+      schema = new Schema.Parser().parse(schemaString);//解析成一个schema
     } else if (staticSchemaURL != null) {   // fallback to static url if it was there
-      schema = schemaCache.get(staticSchemaURL);
+      schema = schemaCache.get(staticSchemaURL);//加载静态的schema信息
       if (schema == null) {
         schema = loadFromUrl(staticSchemaURL);
         schemaCache.put(staticSchemaURL, schema);
@@ -139,14 +139,15 @@ public class AvroEventSerializer implements EventSerializer, Configurable {
       throw new FlumeException("Could not find schema for event " + event);
     }
 
+    //通过schema就可以生成一个writer了
     writer = new GenericDatumWriter<Object>(schema);
     dataFileWriter = new DataFileWriter<Object>(writer);
 
-    dataFileWriter.setSyncInterval(syncIntervalBytes);
+    dataFileWriter.setSyncInterval(syncIntervalBytes);//设置同步
 
     try {
       CodecFactory codecFactory = CodecFactory.fromString(compressionCodec);
-      dataFileWriter.setCodec(codecFactory);
+      dataFileWriter.setCodec(codecFactory);//设置编码
     } catch (AvroRuntimeException e) {
       logger.warn("Unable to instantiate avro codec with name (" +
           compressionCodec + "). Compression disabled. Exception follows.", e);
@@ -155,10 +156,11 @@ public class AvroEventSerializer implements EventSerializer, Configurable {
     dataFileWriter.create(schema, out);
   }
 
+  //从url中加载需要的schema信息
   private Schema loadFromUrl(String schemaUrl) throws IOException {
     Configuration conf = new Configuration();
     Schema.Parser parser = new Schema.Parser();
-    if (schemaUrl.toLowerCase(Locale.ENGLISH).startsWith("hdfs://")) {
+    if (schemaUrl.toLowerCase(Locale.ENGLISH).startsWith("hdfs://")) {//说明url是在hdfs上的
       FileSystem fs = FileSystem.get(conf);
       FSDataInputStream input = null;
       try {
@@ -172,7 +174,7 @@ public class AvroEventSerializer implements EventSerializer, Configurable {
     } else {
       InputStream is = null;
       try {
-        is = new URL(schemaUrl).openStream();
+        is = new URL(schemaUrl).openStream();//说明url是在本地
         return parser.parse(is);
       } finally {
         if (is != null) {

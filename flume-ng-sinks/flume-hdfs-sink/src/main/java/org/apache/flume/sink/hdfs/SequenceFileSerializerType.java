@@ -18,9 +18,10 @@
  */
 package org.apache.flume.sink.hdfs;
 
+//序列化类型方式,即如何对事件进行序列化
 public enum SequenceFileSerializerType {
-  Writable(HDFSWritableSerializer.Builder.class),
-  Text(HDFSTextSerializer.Builder.class),
+  Writable(HDFSWritableSerializer.Builder.class),//key是系统时间戳,value是事件的body内容,即就是二进制字节数组
+  Text(HDFSTextSerializer.Builder.class),//key是系统时间戳,value是事件的body内容转换成文本的Text
   Other(null);
 
   private final Class<? extends SequenceFileSerializer.Builder> builderClass;

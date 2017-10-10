@@ -46,9 +46,9 @@ public abstract class AbstractHDFSWriter implements HDFSWriter {
   private Method refGetNumCurrentReplicas = null;//getNumCurrentReplicas方法的反射
   private Method refGetDefaultReplication = null;//getDefaultReplication方法的反射
   private Method refHflushOrSync = null;//hflush方法或者sync方法的反射
-  private Integer configuredMinReplicas = null;
-  private Integer numberOfCloseRetries = null;
-  private long timeBetweenCloseRetries = Long.MAX_VALUE;
+  private Integer configuredMinReplicas = null;//数据块备份数量
+  private Integer numberOfCloseRetries = null;//尝试次数
+  private long timeBetweenCloseRetries = Long.MAX_VALUE;//每次尝试之间睡眠时间,单位是毫秒
 
   static final Object[] NO_ARGS = new Object[]{};//不需要参数
 
@@ -78,11 +78,12 @@ public abstract class AbstractHDFSWriter implements HDFSWriter {
    * unregisterCurrentStream() on close, and the base class takes care of the
    * rest.
    * @return
+   * true表示还需要继续备份,备份数量不够
    */
   @Override
   public boolean isUnderReplicated() {
     try {
-      int numBlocks = getNumCurrentReplicas();
+      int numBlocks = getNumCurrentReplicas();//当前的备份数量
       if (numBlocks == -1) {
         return false;
       }

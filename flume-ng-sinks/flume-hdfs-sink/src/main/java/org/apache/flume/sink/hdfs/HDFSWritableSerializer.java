@@ -24,8 +24,11 @@ import org.apache.hadoop.io.LongWritable;
 
 import java.util.Collections;
 
+//将一个事件序列化成key是long,value是字节数组
+//long是系统时间戳,value是事件的body内容
 public class HDFSWritableSerializer implements SequenceFileSerializer {
 
+  //将事件转换成字节数组对象
   private BytesWritable makeByteWritable(Event e) {
     BytesWritable bytesObject = new BytesWritable();
     bytesObject.set(e.getBody(), 0, e.getBody().length);
@@ -49,6 +52,8 @@ public class HDFSWritableSerializer implements SequenceFileSerializer {
     return Collections.singletonList(new Record(key, value));
   }
 
+  //将一个事件转换成key需要的类型,即LongWritable类型
+  //获取header对应的时间戳,否则就使用系统当前时间戳
   private Object getKey(Event e) {
     String timestamp = e.getHeaders().get("timestamp");
     long eventStamp;
@@ -61,6 +66,7 @@ public class HDFSWritableSerializer implements SequenceFileSerializer {
     return new LongWritable(eventStamp);
   }
 
+  //将一个事件转换成value需要的类型,即BytesWritable类型
   private Object getValue(Event e) {
     return makeByteWritable(e);
   }

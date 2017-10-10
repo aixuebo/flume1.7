@@ -23,6 +23,7 @@ import org.apache.flume.Context;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+//如何创建序列化对象
 public class SequenceFileSerializerFactory {
 
   private static final Logger logger =

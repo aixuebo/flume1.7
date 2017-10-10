@@ -35,7 +35,8 @@ import com.google.common.base.Strings;
 
 /**
  * ZooKeeper based configuration implementation provider.
- * 
+ * 基于ZooKeeper做配置管理的实现
+ *
  * The Agent configuration can be uploaded in ZooKeeper under a base name, which
  * defaults to /flume
  * 
@@ -64,11 +65,11 @@ import com.google.common.base.Strings;
 public abstract class AbstractZooKeeperConfigurationProvider extends
     AbstractConfigurationProvider {
 
-  static final String DEFAULT_ZK_BASE_PATH = "/flume";
+  static final String DEFAULT_ZK_BASE_PATH = "/flume";//默认的zookeeper基础路径
 
-  protected final String basePath;
+  protected final String basePath;//在zookeeper上的基础路径
 
-  protected final String zkConnString;
+  protected final String zkConnString;//zook连接串
 
   protected AbstractZooKeeperConfigurationProvider(String agentName,
       String zkConnString, String basePath) {

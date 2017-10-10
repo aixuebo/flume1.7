@@ -33,15 +33,15 @@ import java.util.Collection;
  * Sets up the delimiter and the field to column mapping
  */
 public class HiveDelimitedTextSerializer implements HiveEventSerializer  {
-  public static final String ALIAS = "DELIMITED";
+  public static final String ALIAS = "DELIMITED";//该类的别名
 
-  public static final String defaultDelimiter = ",";
-  public static final String SERIALIZER_DELIMITER = "serializer.delimiter";
-  public static final String SERIALIZER_FIELDNAMES = "serializer.fieldnames";
+  public static final String defaultDelimiter = ",";//默认按照逗号拆分列集合
+  public static final String SERIALIZER_DELIMITER = "serializer.delimiter";//如何拆分数据列
+  public static final String SERIALIZER_FIELDNAMES = "serializer.fieldnames";//属性的name集合
   public static final String SERIALIZER_SERDE_SEPARATOR = "serializer.serdeSeparator";
 
-  private String delimiter;
-  private String[] fieldToColMapping = null;
+  private String delimiter;//一行数据具体的分隔符
+  private String[] fieldToColMapping = null;//属性name的集合
   private Character serdeSeparator = null;
 
   @Override
@@ -83,6 +83,7 @@ public class HiveDelimitedTextSerializer implements HiveEventSerializer  {
   }
 
   // if delimiter is a double quoted like "\t", drop quotes
+    //取消双引号
   private static String parseDelimiterSpec(String delimiter) {
     if (delimiter == null) {
       return null;
@@ -95,6 +96,7 @@ public class HiveDelimitedTextSerializer implements HiveEventSerializer  {
   }
 
   // if delimiter is a single quoted character like '\t', drop quotes
+  //取消单引号
   private static  Character parseSerdeSeparatorSpec(String separatorStr) {
     if (separatorStr == null) {
       return null;

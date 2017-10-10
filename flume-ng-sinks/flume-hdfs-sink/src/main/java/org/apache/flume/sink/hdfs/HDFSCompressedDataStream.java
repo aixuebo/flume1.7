@@ -37,20 +37,21 @@ import org.apache.hadoop.io.compress.DefaultCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+//压缩的方式向HDFS上输出序列化后的数据
 public class HDFSCompressedDataStream extends AbstractHDFSWriter {
 
   private static final Logger logger =
       LoggerFactory.getLogger(HDFSCompressedDataStream.class);
 
-  private FSDataOutputStream fsOut;
-  private CompressionOutputStream cmpOut;
+  private FSDataOutputStream fsOut;//标准对文件的输出流
+  private CompressionOutputStream cmpOut;//压缩流
   private boolean isFinished = false;
 
   private String serializerType;
   private Context serializerContext;
-  private EventSerializer serializer;
+  private EventSerializer serializer;//序列化对象,即如何对一个事件进行序列化,然后向对应的输出流中写入数据,输出流对应的是一个压缩流
   private boolean useRawLocalFileSystem;
-  private Compressor compressor;
+  private Compressor compressor;//压缩算法
 
   @Override
   public void configure(Context context) {
@@ -65,6 +66,7 @@ public class HDFSCompressedDataStream extends AbstractHDFSWriter {
         + useRawLocalFileSystem);
   }
 
+  //对文件采用DefaultCodec算法压缩,进行块压缩
   @Override
   public void open(String filePath) throws IOException {
     DefaultCodec defCodec = new DefaultCodec();
@@ -72,6 +74,7 @@ public class HDFSCompressedDataStream extends AbstractHDFSWriter {
     open(filePath, defCodec, cType);
   }
 
+  //对一个文件,采用什么算法压缩,以及压缩方式是块压缩还是行压缩等
   @Override
   public void open(String filePath, CompressionCodec codec,
       CompressionType cType) throws IOException {
@@ -86,9 +89,9 @@ public class HDFSCompressedDataStream extends AbstractHDFSWriter {
             "is not of type LocalFileSystem: " + hdfs.getClass().getName());
       }
     }
-    boolean appending = false;
-    if (conf.getBoolean("hdfs.append.support", false) == true && hdfs.isFile(dstPath)) {
-      fsOut = hdfs.append(dstPath);
+    boolean appending = false;//true表示可以追加
+    if (conf.getBoolean("hdfs.append.support", false) == true && hdfs.isFile(dstPath)) {//说明可以追加写文件,并且目标路径是文件
+      fsOut = hdfs.append(dstPath);//创建追加流
       appending = true;
     } else {
       fsOut = hdfs.create(dstPath);
@@ -125,6 +128,7 @@ public class HDFSCompressedDataStream extends AbstractHDFSWriter {
     serializer.write(e);
   }
 
+  //进行同步运算
   @Override
   public void sync() throws IOException {
     // We must use finish() and resetState() here -- flush() is apparently not

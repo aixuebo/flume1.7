@@ -19,10 +19,10 @@
 package org.apache.flume.sink.hive;
 
 public class Config {
-  public static final String HIVE_METASTORE = "hive.metastore";
+  public static final String HIVE_METASTORE = "hive.metastore";//hive的元数据
   public static final String HIVE_DATABASE = "hive.database";
   public static final String HIVE_TABLE = "hive.table";
-  public static final String HIVE_PARTITION = "hive.partition";
+  public static final String HIVE_PARTITION = "hive.partition";//设置partition的name集合,用逗号拆分
   public static final String HIVE_TXNS_PER_BATCH_ASK = "hive.txnsPerBatchAsk";
   public static final String BATCH_SIZE = "batchSize";
   public static final String IDLE_TIMEOUT = "idleTimeout";
@@ -37,5 +37,5 @@ public class Config {
   public static final String MINUTE = "minute";
   public static final String SECOND = "second";
   public static final String ROUND_VALUE = "roundValue";
-  public static final String SERIALIZER = "serializer";
+  public static final String SERIALIZER = "serializer";//用哪个类进行序列化转换
 }

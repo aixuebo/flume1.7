@@ -20,10 +20,11 @@ package org.apache.flume.sink.hdfs;
 
 import java.io.IOException;
 
+//用什么方式存储序列化的数据
 public class HDFSWriterFactory {
-  static final String SequenceFileType = "SequenceFile";
-  static final String DataStreamType = "DataStream";
-  static final String CompStreamType = "CompressedStream";
+  static final String SequenceFileType = "SequenceFile";//对序列化的内容进行Sequence处理,即文件的格式是Sequence格式的
+  static final String DataStreamType = "DataStream";//直接存储序列化的原始内容,即文件的格式是Text格式的,只是存储的数据是二进制数据
+  static final String CompStreamType = "CompressedStream";//对序列化后的内容进行压缩处理,即文件的格式是Text格式的,只是存储的数据是二进制压缩数据
 
   public HDFSWriterFactory() {
 

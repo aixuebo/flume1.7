@@ -35,6 +35,7 @@ import org.apache.hadoop.io.compress.CompressionCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+//不压缩的向HDFS上输出序列化后的数据
 public class HDFSDataStream extends AbstractHDFSWriter {
 
   private static final Logger logger = LoggerFactory.getLogger(HDFSDataStream.class);
