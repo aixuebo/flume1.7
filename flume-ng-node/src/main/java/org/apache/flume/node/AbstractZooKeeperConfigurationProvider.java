@@ -49,7 +49,7 @@ import com.google.common.base.Strings;
  *       /a2 [agent config file]
  *       /a3 [agent config file]
  * </PRE>
- * 
+ * 使用/flume/代理name/下面配置好properties的属性内容,使用字节数组的方式存储到zookeeper中
  * Configuration format is same as PropertiesFileConfigurationProvider
  * 
  * Configuration properties
@@ -84,11 +84,13 @@ public abstract class AbstractZooKeeperConfigurationProvider extends
     }
   }
 
+  //连接zookeeper
   protected CuratorFramework createClient() {
     return CuratorFrameworkFactory.newClient(zkConnString,
         new ExponentialBackoffRetry(1000, 1));
   }
 
+  //参数是properties格式的文件内容,只是字节数组形式存储到zookeeper中的,将其转换成Map对象
   protected FlumeConfiguration configFromBytes(byte[] configData)
       throws IOException {
     Map<String, String> configMap;
@@ -96,9 +98,9 @@ public abstract class AbstractZooKeeperConfigurationProvider extends
       configMap = Collections.emptyMap();
     } else {
       String fileContent = new String(configData, Charsets.UTF_8);
-      Properties properties = new Properties();
+      Properties properties = new Properties();//将内容加载到Properties中
       properties.load(new StringReader(fileContent));
-      configMap = toMap(properties);
+      configMap = toMap(properties);//对Properties对象转换成Map对象,即key=value形式的
     }
     return new FlumeConfiguration(configMap);
   }

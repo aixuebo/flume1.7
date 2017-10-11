@@ -54,14 +54,15 @@ import java.util.StringTokenizer;
  * </p>
  *
  * @see org.apache.flume.node.ConfigurationProvider
- *
+ * 解析配置文件
  */
 public class FlumeConfiguration {
 
   private static final Logger logger = LoggerFactory.getLogger(FlumeConfiguration.class);
 
-  private final Map<String, AgentConfiguration> agentConfigMap;
-  private final LinkedList<FlumeConfigurationError> errors;
+  //key是agent的name,即配置文件中key对应的第一个.前面的内容,比如maming.sinks.h5h.channel=h5c,因此agent就是maming
+  private final Map<String, AgentConfiguration> agentConfigMap;//每一个agent对应一个配置对象
+  private final LinkedList<FlumeConfigurationError> errors;//解析的所有错误信息
   public static final String NEWLINE = System.getProperty("line.separator", "\n");
   public static final String INDENTSTEP = "  ";
 
@@ -119,18 +120,18 @@ public class FlumeConfiguration {
   private void validateConfiguration() {
     Iterator<String> it = agentConfigMap.keySet().iterator();
 
-    while (it.hasNext()) {
+    while (it.hasNext()) {//循环每一个代理对象
       String agentName = it.next();
-      AgentConfiguration aconf = agentConfigMap.get(agentName);
+      AgentConfiguration aconf = agentConfigMap.get(agentName);//获取代理对象的配置信息
 
-      if (!aconf.isValid()) {
+      if (!aconf.isValid()) {//说明校验有问题
         logger.warn("Agent configuration invalid for agent '" + agentName
             + "'. It will be removed.");
         errors.add(new FlumeConfigurationError(agentName, "",
             FlumeConfigurationErrorType.AGENT_CONFIGURATION_INVALID,
             ErrorOrWarning.ERROR));
 
-        it.remove();
+        it.remove();//移除有问题的配置的agent
       }
       logger.debug("Channels:" + aconf.channels + "\n");
       logger.debug("Sinks " + aconf.sinks + "\n");
@@ -141,6 +142,7 @@ public class FlumeConfiguration {
         + " for agents: " + agentConfigMap.keySet());
   }
 
+  //添加配置文件中的每一个key=value原生属性
   private boolean addRawProperty(String name, String value) {
     // Null names and values not supported
     if (name == null || value == null) {
@@ -167,6 +169,7 @@ public class FlumeConfiguration {
     int index = name.indexOf('.');
 
     // All configuration keys must have a prefix defined as agent name
+    //确保所有的key必须有前缀,即必须由.分割
     if (index == -1) {
       errors
           .add(new FlumeConfigurationError(name, "",
@@ -175,7 +178,7 @@ public class FlumeConfiguration {
       return false;
     }
 
-    String agentName = name.substring(0, index);
+    String agentName = name.substring(0, index);//agent的name就是第一个.前面的值
 
     // Agent name must be specified for all properties
     if (agentName.length() == 0) {
@@ -209,9 +212,12 @@ public class FlumeConfiguration {
     return aconf.addProperty(configKey, value);
   }
 
+  //表示一个代理对象
+  //核心方法是addProperty方法,添加属性以及对应的value值
   public static class AgentConfiguration {
 
-    private final String agentName;
+    private final String agentName;//agent的name
+    //原始配置信息,表明代理下有哪些source等信息
     private String sources;
     private String sinks;
     private String channels;
@@ -222,17 +228,19 @@ public class FlumeConfiguration {
     private final Map<String, ComponentConfiguration> channelConfigMap;
     private final Map<String, ComponentConfiguration> sinkgroupConfigMap;
 
+    //组件的配置信息集合
     private Map<String, Context> sourceContextMap;
     private Map<String, Context> sinkContextMap;
     private Map<String, Context> channelContextMap;
     private Map<String, Context> sinkGroupContextMap;
 
+    //组件的name集合
     private Set<String> sinkSet;
     private Set<String> sourceSet;
     private Set<String> channelSet;
     private Set<String> sinkgroupSet;
 
-    private final List<FlumeConfigurationError> errorList;
+    private final List<FlumeConfigurationError> errorList;//错误信息
 
     private AgentConfiguration(String agentName,
                                List<FlumeConfigurationError> errorList) {
@@ -308,6 +316,7 @@ public class FlumeConfiguration {
      * </p>
      *
      * @return true if the configuration is valid, false otherwise
+     * true表示有效,false表示有问题
      */
     private boolean isValid() {
       logger.debug("Starting validation of configuration for agent: {}", agentName);
@@ -315,6 +324,7 @@ public class FlumeConfiguration {
         logger.debug("Initial configuration: {}", this.getPrevalidationConfig());
       }
 
+      //必须有channel
       // Make sure that at least one channel is specified
       if (channels == null || channels.trim().length() == 0) {
         logger.warn("Agent configuration for '" + agentName
@@ -444,7 +454,7 @@ public class FlumeConfiguration {
         if (channelContext != null) {
           // Get the configuration object for the channel:
           ChannelType chType = getKnownChannel(channelContext.getString(
-              BasicConfigurationConstants.CONFIG_TYPE));
+              BasicConfigurationConstants.CONFIG_TYPE));//获取channel的类型实现类
           boolean configSpecified = false;
           String config = null;
           // Not a known channel - cannot do specific validation to this channel
@@ -826,6 +836,7 @@ public class FlumeConfiguration {
       return groupSinks;
     }
 
+    //将集合用空格拆分成字符串
     private String getSpaceDelimitedList(Set<String> entries) {
       if (entries.size() == 0) {
         return null;
@@ -840,6 +851,7 @@ public class FlumeConfiguration {
       return sb.toString().trim();
     }
 
+    //将字符串拆分成集合
     private static Set<String> stringToSet(String target, String delim) {
       Set<String> out = new HashSet<String>();
       if (target == null || target.trim().length() == 0) {
@@ -906,9 +918,10 @@ public class FlumeConfiguration {
       return sb.toString();
     }
 
+    //添加该agent的key和value,其中key demo,比如maming.sinks.h5h.channel=h5c,因为maming是agent,因此key此时就是sinks.h5h.channel
     private boolean addProperty(String key, String value) {
       // Check for sources
-      if (key.equals(BasicConfigurationConstants.CONFIG_SOURCES)) {
+      if (key.equals(BasicConfigurationConstants.CONFIG_SOURCES)) {//说明此时是source,表明该agent有哪些source
         if (sources == null) {
           sources = value;
           return true;
@@ -978,7 +991,7 @@ public class FlumeConfiguration {
 
       if (cnck != null) {
         // it is a source
-        String name = cnck.getComponentName();
+        String name = cnck.getComponentName();//source本身的name
         Context srcConf = sourceContextMap.get(name);
 
         if (srcConf == null) {
@@ -990,6 +1003,7 @@ public class FlumeConfiguration {
         return true;
       }
 
+      //分别解析source等组件的属性
       cnck = parseConfigKey(key,
           BasicConfigurationConstants.CONFIG_CHANNELS_PREFIX);
 
@@ -1049,6 +1063,7 @@ public class FlumeConfiguration {
       return false;
     }
 
+    //解析具体的配置,比如原始key是maming.sinks.h5h.channel,因此此时的key是sinks.h5h.channel,prefix表示sinks.
     private ComponentNameAndConfigKey parseConfigKey(String key, String prefix) {
       // key must start with prefix
       if (!key.startsWith(prefix)) {
@@ -1057,7 +1072,7 @@ public class FlumeConfiguration {
 
       // key must have a component name part after the prefix of the format:
       // <prefix><component-name>.<config-key>
-      int index = key.indexOf('.', prefix.length() + 1);
+      int index = key.indexOf('.', prefix.length() + 1);//截取maming.sinks.h5h.channel信息,结果为h5h.channel
 
       if (index == -1) {
         return null;
@@ -1075,10 +1090,16 @@ public class FlumeConfiguration {
     }
   }
 
+    /**
+     * 比如原始内容是maming.sinks.h5h.channel
+     * 此时componentName是h5h
+     * configKey是channel
+     */
   public static class ComponentNameAndConfigKey {
 
-    private final String componentName;
-    private final String configKey;
+    //因为sink可能有若干个,因此我想找到某一个sink的name对应的内容
+    private final String componentName;//组件表示的是该组件的name
+    private final String configKey;//剩余key的内容
 
     private ComponentNameAndConfigKey(String name, String configKey) {
       this.componentName = name;

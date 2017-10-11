@@ -20,5 +20,7 @@
 package org.apache.flume.node;
 
 public interface ConfigurationProvider {
+
+  //即解析配置文件,产生flume具体的对象,物化配置,即flume解析配置文件后,产生的source、sink、channel等实体对象
   MaterializedConfiguration getConfiguration();
 }

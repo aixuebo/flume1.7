@@ -44,6 +44,7 @@ import java.util.concurrent.TimeUnit;
  * SpillableMemoryChannel will use main memory for buffering events until it has reached capacity.
  * Thereafter file channel will be used as overflow.
  * </p>
+ * 使用内存去存储数据,但是当达到一定空间时候,要写入到文件中
  */
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
@@ -198,13 +199,14 @@ public class SpillableMemoryChannel extends FileChannel {
 
   //  pop on a empty queue will throw NoSuchElementException
   // invariant: 0 will never be left in the queue
-
+  //一个顺序队列
   public static class DrainOrderQueue {
-    public ArrayDeque<MutableInteger> queue = new ArrayDeque<MutableInteger>(1000);
+    public ArrayDeque<MutableInteger> queue = new ArrayDeque<MutableInteger>(1000);//一个队列
 
-    public int totalPuts = 0;  // for debugging only
+    public int totalPuts = 0;  // for debugging only 总put数量
     private long overflowCounter = 0; // # of items in overflow channel
 
+    //打印队列内容
     public String dump() {
       StringBuilder sb = new StringBuilder();
 
@@ -217,6 +219,7 @@ public class SpillableMemoryChannel extends FileChannel {
       return sb.toString();
     }
 
+    //存放尾巴有多少个事件
     public void putPrimary(Integer eventCount) {
       totalPuts += eventCount;
       if ((queue.peekLast() == null) || queue.getLast().intValue() < 0) {
@@ -226,6 +229,7 @@ public class SpillableMemoryChannel extends FileChannel {
       }
     }
 
+    //存放头有多少个事件
     public void putFirstPrimary(Integer eventCount) {
       if ((queue.peekFirst() == null) || queue.getFirst().intValue() < 0) {
         queue.addFirst(new MutableInteger(eventCount));
@@ -253,6 +257,7 @@ public class SpillableMemoryChannel extends FileChannel {
       overflowCounter += eventCount;
     }
 
+    //获取头部有多少个事件
     public int front() {
       return queue.getFirst().intValue();
     }
@@ -266,11 +271,12 @@ public class SpillableMemoryChannel extends FileChannel {
 
       // this condition is optimization to avoid redundant conversions of
       // int -> Integer -> string in hot path
-      if (headValue.intValue() < takeCount) {
+      if (headValue.intValue() < takeCount) {//说明不能拿到这么多元素,因为没有这么多元素
         throw new IllegalStateException("Cannot take " + takeCount +
             " from " + headValue.intValue() + " in DrainOrder Queue");
       }
 
+      //头部更新数量
       headValue.add(-takeCount);
       if (headValue.intValue() == 0) {
         queue.removeFirst();
@@ -293,12 +299,13 @@ public class SpillableMemoryChannel extends FileChannel {
 
   }
 
+  //一个事务
   private class SpillableMemoryTransaction extends BasicTransactionSemantics {
     BasicTransactionSemantics overflowTakeTx = null; // Take-Txn for overflow
     BasicTransactionSemantics overflowPutTx = null;  // Put-Txn for overflow
-    boolean useOverflow = false;
-    boolean putCalled = false;    // set on first invocation to put
-    boolean takeCalled = false;   // set on first invocation to take
+    boolean useOverflow = false;//false表示没有溢出
+    boolean putCalled = false;    // set on first invocation to put ,true表示执行的是put方法的事务
+    boolean takeCalled = false;   // set on first invocation to take,true表示执行的是take方法的事务
     int largestTakeTxSize = 5000; // not a constraint, just hint for allocation
     int largestPutTxSize = 5000;  // not a constraint, just hint for allocation
 
@@ -308,6 +315,7 @@ public class SpillableMemoryChannel extends FileChannel {
     private int takeListByteCount = 0;
     private int takeCount = 0;
 
+    //两个临时队列
     ArrayDeque<Event> takeList;
     ArrayDeque<Event> putList;
     private final ChannelCounter channelCounter;
@@ -334,6 +342,7 @@ public class SpillableMemoryChannel extends FileChannel {
       super.close();
     }
 
+    //临时把事件存储到内存中
     @Override
     protected void doPut(Event event) throws InterruptedException {
       channelCounter.incrementEventPutAttemptCount();
@@ -364,7 +373,7 @@ public class SpillableMemoryChannel extends FileChannel {
         synchronized (queueLock) {
           int drainOrderTop = drainOrder.front();
 
-          if (!takeCalled) {
+          if (!takeCalled) {//初始化第一次take
             takeCalled = true;
             if (drainOrderTop < 0) {
               useOverflow = true;
@@ -373,7 +382,7 @@ public class SpillableMemoryChannel extends FileChannel {
             }
           }
 
-          if (useOverflow) {
+          if (useOverflow) {//说明内存已经溢出
             if (drainOrderTop > 0) {
               LOGGER.debug("Take is switching to primary");
               return null;       // takes should now occur from primary channel
@@ -397,7 +406,7 @@ public class SpillableMemoryChannel extends FileChannel {
         }
 
         int eventByteSize = (int) Math.ceil(estimateEventSize(event) / avgEventSize);
-        if (!useOverflow) {
+        if (!useOverflow) {//没有溢出,则存放在临时队列中
           // takeList is thd pvt, so no need to do this in synchronized block
           takeList.offer(event);
         }
@@ -816,6 +825,7 @@ public class SpillableMemoryChannel extends FileChannel {
     return super.createTransaction();
   }
 
+  //估算事件占用的字节空间
   private long estimateEventSize(Event event) {
     byte[] body = event.getBody();
     if (body != null && body.length != 0) {

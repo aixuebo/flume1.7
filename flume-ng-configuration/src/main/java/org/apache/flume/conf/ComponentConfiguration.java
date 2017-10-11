@@ -124,6 +124,7 @@ public abstract class ComponentConfiguration {
     configured = true;
   }
 
+  //组件类型
   public enum ComponentType {
     OTHER(null),
     SOURCE("Source"),

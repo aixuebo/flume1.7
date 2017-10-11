@@ -28,8 +28,10 @@ import org.apache.flume.SourceRunner;
 
 import com.google.common.collect.ImmutableMap;
 
+//简单的实例化所有flume支持的source、channel、sink对象的容器
 public class SimpleMaterializedConfiguration implements MaterializedConfiguration {
 
+  //三个容器,key是name,value是对象
   private final Map<String, Channel> channels;
   private final Map<String, SourceRunner> sourceRunners;
   private final Map<String, SinkRunner> sinkRunners;

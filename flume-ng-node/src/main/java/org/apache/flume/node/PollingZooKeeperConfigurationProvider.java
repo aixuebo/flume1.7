@@ -33,6 +33,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.eventbus.EventBus;
 
+//轮训的方式读取zookeeper的配置文件,即配置文件更改后,会被自动加载
+//基于zookeeper的事件模式,自动加载配置信息
 public class PollingZooKeeperConfigurationProvider extends
     AbstractZooKeeperConfigurationProvider implements LifecycleAware {
 
@@ -41,7 +43,7 @@ public class PollingZooKeeperConfigurationProvider extends
 
   private final EventBus eventBus;
 
-  private final CuratorFramework client;
+  private final CuratorFramework client;//zookeeper客户端
 
   private NodeCache agentNodeCache;
 

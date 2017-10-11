@@ -42,13 +42,14 @@ public class StaticZooKeeperConfigurationProvider extends
     super(agentName, zkConnString, basePath);
   }
 
+  //加载zookeeper下的配置信息
   @Override
   protected FlumeConfiguration getFlumeConfiguration() {
     try {
       CuratorFramework cf = createClient();
       cf.start();
       try {
-        byte[] data = cf.getData().forPath(basePath + "/" + getAgentName());
+        byte[] data = cf.getData().forPath(basePath + "/" + getAgentName());//读取配置信息
         return configFromBytes(data);
       } finally {
         cf.close();

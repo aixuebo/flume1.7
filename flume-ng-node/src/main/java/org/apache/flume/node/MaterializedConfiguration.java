@@ -29,15 +29,18 @@ import com.google.common.collect.ImmutableMap;
  * MaterializedConfiguration represents the materialization of a Flume
  * properties file. That is it's the actual Source, Sink, and Channels
  * represented in the configuration file.
+ * 物化配置,即flume解析配置文件后,产生的source、sink、channel等实体对象
  */
 public interface MaterializedConfiguration {
 
+  //添加一个source对象
   public void addSourceRunner(String name, SourceRunner sourceRunner);
 
   public void addSinkRunner(String name, SinkRunner sinkRunner);
 
   public void addChannel(String name, Channel channel);
 
+  //获取全部的source对象
   public ImmutableMap<String, SourceRunner> getSourceRunners();
 
   public ImmutableMap<String, SinkRunner> getSinkRunners();

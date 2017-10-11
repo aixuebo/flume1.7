@@ -32,6 +32,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
+
+//轮训的方式读取配置文件,即配置文件更改后,会被自动加载
 public class PollingPropertiesFileConfigurationProvider
     extends PropertiesFileConfigurationProvider
     implements LifecycleAware {
@@ -40,12 +42,12 @@ public class PollingPropertiesFileConfigurationProvider
       LoggerFactory.getLogger(PollingPropertiesFileConfigurationProvider.class);
 
   private final EventBus eventBus;
-  private final File file;
-  private final int interval;
+  private final File file;//配置文件
+  private final int interval;//调度周期,单位分钟
   private final CounterGroup counterGroup;
   private LifecycleState lifecycleState;
 
-  private ScheduledExecutorService executorService;
+  private ScheduledExecutorService executorService;//线程池
 
   public PollingPropertiesFileConfigurationProvider(String agentName,
       File file, EventBus eventBus, int interval) {
@@ -113,7 +115,7 @@ public class PollingPropertiesFileConfigurationProvider
     private final File file;
     private final CounterGroup counterGroup;
 
-    private long lastChange;
+    private long lastChange;//上次文件最后更改的时间戳
 
     public FileWatcherRunnable(File file, CounterGroup counterGroup) {
       super();
@@ -130,7 +132,7 @@ public class PollingPropertiesFileConfigurationProvider
 
       long lastModified = file.lastModified();
 
-      if (lastModified > lastChange) {
+      if (lastModified > lastChange) {//说明有文件被更改
         LOGGER.info("Reloading configuration file:{}", file);
 
         counterGroup.incrementAndGet("file.loads");
@@ -138,7 +140,7 @@ public class PollingPropertiesFileConfigurationProvider
         lastChange = lastModified;
 
         try {
-          eventBus.post(getConfiguration());
+          eventBus.post(getConfiguration());//重新加载配置信息
         } catch (Exception e) {
           LOGGER.error("Failed to load configuration data. Exception follows.",
               e);

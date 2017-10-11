@@ -59,13 +59,13 @@ public class Application {
   private static final Logger logger = LoggerFactory
       .getLogger(Application.class);
 
-  public static final String CONF_MONITOR_CLASS = "flume.monitoring.type";
-  public static final String CONF_MONITOR_PREFIX = "flume.monitoring.";
+  public static final String CONF_MONITOR_CLASS = "flume.monitoring.type";//监听类的class全路径
+  public static final String CONF_MONITOR_PREFIX = "flume.monitoring.";//监听class需要的配置属性信息前缀
 
   private final List<LifecycleAware> components;//持有若干个生命周期的对象集合
   private final LifecycleSupervisor supervisor;
   private MaterializedConfiguration materializedConfiguration;
-  private MonitorService monitorServer;
+  private MonitorService monitorServer;//创建监听服务
 
   public Application() {
     this(new ArrayList<LifecycleAware>(0));
@@ -135,6 +135,7 @@ public class Application {
     }
   }
 
+  //先开启channel、然后开启sink,最后开启source
   private void startAllComponents(MaterializedConfiguration materializedConfiguration) {
     logger.info("Starting new configuration:{}", materializedConfiguration);
 
@@ -197,6 +198,7 @@ public class Application {
     Properties systemProps = System.getProperties();
     Set<String> keys = systemProps.stringPropertyNames();
     try {
+      //解析监听class的全路径
       if (keys.contains(CONF_MONITOR_CLASS)) {
         String monitorType = systemProps.getProperty(CONF_MONITOR_CLASS);
         Class<? extends MonitorService> klass;
@@ -208,7 +210,9 @@ public class Application {
           //Not a known type, use FQCN
           klass = (Class<? extends MonitorService>) Class.forName(monitorType);
         }
-        this.monitorServer = klass.newInstance();
+        this.monitorServer = klass.newInstance();//创建监听对象
+
+        //解析监听class服务需要的配置信息
         Context context = new Context();
         for (String key : keys) {
           if (key.startsWith(CONF_MONITOR_PREFIX)) {
