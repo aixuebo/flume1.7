@@ -98,7 +98,7 @@ public class MemoryChannel extends BasicChannelSemantics {
             takeList.size() + " full, consider committing more frequently, " +
             "increasing capacity, or increasing thread count");
       }
-      if (!queueStored.tryAcquire(keepAlive, TimeUnit.SECONDS)) {//确保只有一个人能拿到take
+      if (!queueStored.tryAcquire(keepAlive, TimeUnit.SECONDS)) {//确保take能获取到数据,即队列中确保有数据,因此此时减少一个
         return null;
       }
       Event event;
@@ -120,7 +120,7 @@ public class MemoryChannel extends BasicChannelSemantics {
        * put操作比较麻烦,
        * a.首先要减少bytesRemaining和queueRemaining空间锁,
        * b.将put的信息添加到总队列中
-       * c.queueStored释放put的空间,目的暂时不清楚
+       * c.queueStored增加put元素数量,保证take可以继续获取数据
        */
     @Override
     protected void doCommit() throws InterruptedException {
@@ -155,7 +155,7 @@ public class MemoryChannel extends BasicChannelSemantics {
       takeByteCounter = 0;
       putByteCounter = 0;
 
-      queueStored.release(puts);
+      queueStored.release(puts);//因为提交了put数据,因此此时take就可以获取多个数据,因此增加puts个数
       if (remainingChange > 0) {//说明是take操作
         queueRemaining.release(remainingChange);//释放队列空间
       }
@@ -208,8 +208,7 @@ public class MemoryChannel extends BasicChannelSemantics {
   // used to make "reservations" to grab data from the queue.被使用去预定一个位置---预定队列中的一个位置
   // by using this we can block for a while to get data without locking all other threads out
   // like we would if we tried to use a blocking call on queue
-  //即在多线程情况下去take获取数据,这个时候又没有锁,因此队列帮助我们进行锁
-  //确保只有一个人能拿到take
+  //确保take一定能获取到数据,如果队列已经有若干个put了,则该值就是若干个,当take的时候,从该值减少一个
   private Semaphore queueStored;
 
   // maximum items in a transaction queue
