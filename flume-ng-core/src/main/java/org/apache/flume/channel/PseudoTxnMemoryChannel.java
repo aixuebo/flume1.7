@@ -76,7 +76,7 @@ import org.apache.flume.instrumentation.ChannelCounter;
  * <p>
  * TODO
  * </p>
- * 伪事务 内存级别的渠道
+ * 伪事务 内存级别的渠道,即不支持事务操作
  *
  * 内存用一个队列去维护所有数据
  */
