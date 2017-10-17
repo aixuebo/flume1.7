@@ -49,6 +49,7 @@ import com.google.common.base.Preconditions;
  * applications. This Agent is mean to be much simpler than a traditional
  * agent and as such it's more restrictive than what can be configured
  * for a traditional agent. For specifics see the Flume User Guide.
+ * 用于程序开发,读取配置文件,创建对应的sink、source、channel等组件,用于程序代码级别的开发
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable

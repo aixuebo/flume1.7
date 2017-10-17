@@ -28,7 +28,7 @@ import com.google.common.base.Preconditions;
 
 final class EventQueueBackingStoreFileV2 extends EventQueueBackingStoreFile {
 
-  private static final int INDEX_SIZE = 2;
+  private static final int INDEX_SIZE = 2;//设置有多少个
   private static final int INDEX_HEAD = 3;
   private static final int INDEX_ACTIVE_LOG = 5;
   private static final int MAX_ACTIVE_LOGS = 1024;
@@ -48,7 +48,7 @@ final class EventQueueBackingStoreFileV2 extends EventQueueBackingStoreFile {
       long nextFileCode = elementsBuffer.get(i);
       if (nextFileCode  != EMPTY) {
         Pair<Integer, Integer> idAndCount =
-            deocodeActiveLogCounter(nextFileCode);
+            deocodeActiveLogCounter(nextFileCode);//反序列化,将一个long转换成两个int
         logFileIDReferenceCounts.put(idAndCount.getLeft(),
             new AtomicInteger(idAndCount.getRight()));
       }
@@ -67,12 +67,14 @@ final class EventQueueBackingStoreFileV2 extends EventQueueBackingStoreFile {
         "Too many active logs ");
   }
 
-
+//反序列化,将一个long转换成两个int
   private Pair<Integer, Integer> deocodeActiveLogCounter(long value) {
     int fileId = (int) (value >>> 32);
     int count = (int) value;
     return Pair.of(fileId, count);
   }
+
+  //序列化,将两个int转换成一个long
   private long encodeActiveLogCounter(int fileId, int count) {
     long result = fileId;
     result = (long)fileId << 32;
@@ -86,16 +88,16 @@ final class EventQueueBackingStoreFileV2 extends EventQueueBackingStoreFile {
     List<Long> fileIdAndCountEncoded = new ArrayList<Long>();
     for (Integer fileId : logFileIDReferenceCounts.keySet()) {
       Integer count = logFileIDReferenceCounts.get(fileId).get();
-      long value = encodeActiveLogCounter(fileId, count);
+      long value = encodeActiveLogCounter(fileId, count);//编码
       fileIdAndCountEncoded.add(value);
     }
 
     int emptySlots = MAX_ACTIVE_LOGS - fileIdAndCountEncoded.size();
-    for (int i = 0; i < emptySlots; i++)  {
+    for (int i = 0; i < emptySlots; i++)  {//设置emptySlots个空位置
       fileIdAndCountEncoded.add(0L);
     }
     for (int i = 0; i < MAX_ACTIVE_LOGS; i++) {
-      elementsBuffer.put(i + INDEX_ACTIVE_LOG, fileIdAndCountEncoded.get(i));
+      elementsBuffer.put(i + INDEX_ACTIVE_LOG, fileIdAndCountEncoded.get(i));//从第5个位置开始存储各个long值
     }
   }
 }

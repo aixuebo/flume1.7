@@ -30,7 +30,7 @@ abstract class EventQueueBackingStore {
   private long logWriteOrderID;
   private final int capacity;//队列容量
   private final String name;//队列名字
-  public static final String BACKUP_COMPLETE_FILENAME = "backupComplete";
+  public static final String BACKUP_COMPLETE_FILENAME = "backupComplete";//完成的文件名字
   protected Boolean slowdownBackup = false;
 
   protected EventQueueBackingStore(int capacity, String name) {
@@ -38,9 +38,11 @@ abstract class EventQueueBackingStore {
     this.name = name;
   }
 
-
+  //开始和进行checkpoint操作
   abstract void beginCheckpoint() throws IOException;
   abstract void checkpoint() throws IOException;
+
+  //增加和减少文件对应的数量
   abstract void incrementFileID(int fileID);
   abstract void decrementFileID(int fileID);
   abstract ImmutableSortedSet<Integer> getReferenceCounts();

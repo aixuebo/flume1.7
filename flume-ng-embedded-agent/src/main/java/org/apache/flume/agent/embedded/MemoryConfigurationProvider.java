@@ -29,10 +29,12 @@ import org.apache.flume.node.AbstractConfigurationProvider;
  * MemoryConfigurationProvider is the simplest possible
  * AbstractConfigurationProvider simply turning a give properties file and
  * agent name into a FlumeConfiguration object.
+ * 内存传入一个map类型的配置信息,用于配置属性
  */
 @InterfaceAudience.Private
 @InterfaceStability.Unstable
 class MemoryConfigurationProvider extends AbstractConfigurationProvider {
+  //map的内容是flume的propertie配置文件的内容,即可以通过该配置文件找到对应的source、sink等信息
   private final Map<String, String> properties;
 
   MemoryConfigurationProvider(String name, Map<String, String> properties) {

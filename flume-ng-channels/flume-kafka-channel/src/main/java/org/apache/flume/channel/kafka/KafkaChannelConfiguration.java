@@ -23,28 +23,28 @@ import org.apache.kafka.clients.CommonClientConfigs;
 public class KafkaChannelConfiguration {
 
   public static final String KAFKA_PREFIX = "kafka.";
-  public static final String KAFKA_CONSUMER_PREFIX = KAFKA_PREFIX + "consumer.";
-  public static final String KAFKA_PRODUCER_PREFIX = KAFKA_PREFIX + "producer.";
+  public static final String KAFKA_CONSUMER_PREFIX = KAFKA_PREFIX + "consumer.";//消费者的配置前缀
+  public static final String KAFKA_PRODUCER_PREFIX = KAFKA_PREFIX + "producer.";//生产者的配置前缀
   public static final String DEFAULT_ACKS = "all";
   public static final String DEFAULT_KEY_SERIALIZER =
-      "org.apache.kafka.common.serialization.StringSerializer";
+      "org.apache.kafka.common.serialization.StringSerializer";//如何序列化key的内容
   public static final String DEFAULT_VALUE_SERIAIZER =
-      "org.apache.kafka.common.serialization.ByteArraySerializer";
+      "org.apache.kafka.common.serialization.ByteArraySerializer";//如何序列化value的内容
   public static final String DEFAULT_KEY_DESERIALIZER =
-      "org.apache.kafka.common.serialization.StringDeserializer";
+      "org.apache.kafka.common.serialization.StringDeserializer";//如何反序列化key
   public static final String DEFAULT_VALUE_DESERIAIZER =
-      "org.apache.kafka.common.serialization.ByteArrayDeserializer";
-  public static final String TOPIC_CONFIG = KAFKA_PREFIX + "topic";
+      "org.apache.kafka.common.serialization.ByteArrayDeserializer";//如何反序列化value
+  public static final String TOPIC_CONFIG = KAFKA_PREFIX + "topic";//配置topic的name
   public static final String BOOTSTRAP_SERVERS_CONFIG =
-      KAFKA_PREFIX + CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG;
+      KAFKA_PREFIX + CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG;//配置broker节点集合
   public static final String DEFAULT_TOPIC = "flume-channel";
   public static final String DEFAULT_GROUP_ID = "flume";
   public static final String POLL_TIMEOUT = KAFKA_PREFIX + "pollTimeout";
   public static final long DEFAULT_POLL_TIMEOUT = 500;
 
-  public static final String KEY_HEADER = "key";
+  public static final String KEY_HEADER = "key";//一条记录的key
 
-  public static final String DEFAULT_AUTO_OFFSET_RESET = "earliest";
+  public static final String DEFAULT_AUTO_OFFSET_RESET = "earliest";//默认从哪里开始消费
 
   public static final String PARSE_AS_FLUME_EVENT = "parseAsFlumeEvent";
   public static final boolean DEFAULT_PARSE_AS_FLUME_EVENT = true;
@@ -53,17 +53,17 @@ public class KafkaChannelConfiguration {
   public static final String STATIC_PARTITION_CONF = "defaultPartitionId";
 
   public static final String MIGRATE_ZOOKEEPER_OFFSETS = "migrateZookeeperOffsets";
-  public static final boolean DEFAULT_MIGRATE_ZOOKEEPER_OFFSETS = true;
+  public static final boolean DEFAULT_MIGRATE_ZOOKEEPER_OFFSETS = true;//true表示说明位置存储在zookeeper上了
 
-  /*** Old Configuration Parameters ****/
+  /*** Old Configuration Parameters 老的配置信息****/
   public static final String BROKER_LIST_KEY = "metadata.broker.list";
   public static final String REQUIRED_ACKS_KEY = "request.required.acks";
-  public static final String BROKER_LIST_FLUME_KEY = "brokerList";
+  public static final String BROKER_LIST_FLUME_KEY = "brokerList";//配置broker节点集合
   //public static final String TOPIC = "topic";
-  public static final String GROUP_ID_FLUME = "groupId";
+  public static final String GROUP_ID_FLUME = "groupId";//配置组ID
   public static final String AUTO_COMMIT_ENABLED = "auto.commit.enable";
   public static final String ZOOKEEPER_CONNECT = "zookeeper.connect";
-  public static final String ZOOKEEPER_CONNECT_FLUME_KEY = "zookeeperConnect";
+  public static final String ZOOKEEPER_CONNECT_FLUME_KEY = "zookeeperConnect";//zookeeper连接串
   public static final String TIMEOUT = "timeout";
   public static final String DEFAULT_TIMEOUT = "100";
   public static final String CONSUMER_TIMEOUT = "consumer.timeout.ms";

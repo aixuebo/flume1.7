@@ -78,6 +78,16 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.apache.flume.channel.kafka.KafkaChannelConfiguration.*;
 import static scala.collection.JavaConverters.asJavaListConverter;
 
+
+/**
+ * put操作,从header中获取存储到哪个partition中,key也从header中获取,将数据存储到内存的队列中,当commit的时候在一起提交给kafka-----因为put都在内存,所以回滚就直接情况内存即可
+ * take操作,从kafka中读取数据,转换成事件,存储在内存队列中,当commit的时候,提交offset到kafka即可---因为take的数据没有改变kafka的offset,因此回滚的时候什么也不用做
+ *
+ * 可以在多个source节点上配置,让source的数据每一个节点上的数据直接写入到kafka的对应的partition上,比如有10个partition,那么可以容纳N多个source节点写入数据
+ * 同时在多个sink节点配置,让sink消费kafka上的数据,这样channel就强大了
+ * 因为增加一个souce节点的生产者,他也会向指定partition发送信息,不会影响kafka集群,但是增加一个sink,会导致消费者的partition重新分配,比如原有3个sink,每一个sink分配了3个partition,现在增加了一个sink,因此其中有的sink以前消费partitionX,现在就不能再消费了，如果在消费就变成重复消费了。
+ * 因此一旦感知sink节点增加了,则将rebalanceFlag设置为true,因此take获取数据的时候就不会在获取了,下一次重新加载消费者,因此避免重复消费问题。
+ */
 public class KafkaChannel extends BasicChannelSemantics {
 
   private static final Logger logger =
@@ -87,20 +97,23 @@ public class KafkaChannel extends BasicChannelSemantics {
   private static final int ZK_SESSION_TIMEOUT = 30000;
   private static final int ZK_CONNECTION_TIMEOUT = 30000;
 
+  //消费者和生产者的配置信息
   private final Properties consumerProps = new Properties();
   private final Properties producerProps = new Properties();
 
-  private KafkaProducer<String, byte[]> producer;
-  private final String channelUUID = UUID.randomUUID().toString();
+  private KafkaProducer<String, byte[]> producer;//生产者对象,key是String,value是字节数组
+  private final String channelUUID = UUID.randomUUID().toString();//表示该渠道的唯一标识
 
   private AtomicReference<String> topic = new AtomicReference<String>();
   private boolean parseAsFlumeEvent = DEFAULT_PARSE_AS_FLUME_EVENT;
-  private String zookeeperConnect = null;
+  private String zookeeperConnect = null;//zookeeper连接串
+
+  //默认topic以及组
   private String topicStr = DEFAULT_TOPIC;
   private String groupId = DEFAULT_GROUP_ID;
-  private String partitionHeader = null;
-  private Integer staticPartitionId;
-  private boolean migrateZookeeperOffsets = DEFAULT_MIGRATE_ZOOKEEPER_OFFSETS;
+  private String partitionHeader = null;//header中获取partition的key
+  private Integer staticPartitionId;//静态的向哪个partition写入数据
+  private boolean migrateZookeeperOffsets = DEFAULT_MIGRATE_ZOOKEEPER_OFFSETS;//true表示说明位置存储在zookeeper上了
 
   //used to indicate if a rebalance has occurred during the current transaction
   AtomicBoolean rebalanceFlag = new AtomicBoolean();
@@ -109,6 +122,7 @@ public class KafkaChannel extends BasicChannelSemantics {
 
 
   // Track all consumers to close them eventually.
+  //持有所有的消费者
   private final List<ConsumerAndRecords> consumers =
           Collections.synchronizedList(new LinkedList<ConsumerAndRecords>());
 
@@ -117,8 +131,8 @@ public class KafkaChannel extends BasicChannelSemantics {
   /* Each Consumer commit will commit all partitions owned by it. To
   * ensure that each partition is only committed when all events are
   * actually done, we will need to keep a Consumer per thread.
+  * 本线程级别的消费者
   */
-
   private final ThreadLocal<ConsumerAndRecords> consumerAndRecords =
       new ThreadLocal<ConsumerAndRecords>() {
         @Override
@@ -132,7 +146,7 @@ public class KafkaChannel extends BasicChannelSemantics {
     logger.info("Starting Kafka Channel: {}", getName());
     // As a migration step check if there are any offsets from the group stored in kafka
     // If not read them from Zookeeper and commit them to Kafka
-    if (migrateZookeeperOffsets && zookeeperConnect != null && !zookeeperConnect.isEmpty()) {
+    if (migrateZookeeperOffsets && zookeeperConnect != null && !zookeeperConnect.isEmpty()) {//说明要加载zookeeper,获取每一个topic-partition的读取位置
       migrateOffsets();
     }
     producer = new KafkaProducer<String, byte[]>(producerProps);
@@ -182,11 +196,13 @@ public class KafkaChannel extends BasicChannelSemantics {
       logger.info("Group ID was not specified. Using {} as the group id.", groupId);
     }
 
+    //创建broker节点集合
     String bootStrapServers = ctx.getString(BOOTSTRAP_SERVERS_CONFIG);
     if (bootStrapServers == null || bootStrapServers.isEmpty()) {
       throw new ConfigurationException("Bootstrap Servers must be specified");
     }
 
+    //配置生产者和消费者配置信息
     setProducerProps(ctx, bootStrapServers);
     setConsumerProps(ctx, bootStrapServers);
 
@@ -210,9 +226,10 @@ public class KafkaChannel extends BasicChannelSemantics {
   }
 
   // We can remove this once the properties are officially deprecated
+  //老配置属性转换成新的配置
   private void translateOldProps(Context ctx) {
 
-    if (!(ctx.containsKey(TOPIC_CONFIG))) {
+    if (!(ctx.containsKey(TOPIC_CONFIG))) {//配置topic的name
       ctx.put(TOPIC_CONFIG, ctx.getString("topic"));
       logger.warn("{} is deprecated. Please use the parameter {}", "topic", TOPIC_CONFIG);
     }
@@ -232,7 +249,7 @@ public class KafkaChannel extends BasicChannelSemantics {
 
     //GroupId
     // If there is an old Group Id set, then use that if no groupId is set.
-    if (!(ctx.containsKey(KAFKA_CONSUMER_PREFIX + ConsumerConfig.GROUP_ID_CONFIG))) {
+    if (!(ctx.containsKey(KAFKA_CONSUMER_PREFIX + ConsumerConfig.GROUP_ID_CONFIG))) {//配置使用的组ID
       String oldGroupId = ctx.getString(GROUP_ID_FLUME);
       if (oldGroupId != null  && !oldGroupId.isEmpty()) {
         ctx.put(KAFKA_CONSUMER_PREFIX + ConsumerConfig.GROUP_ID_CONFIG, oldGroupId);
@@ -241,6 +258,7 @@ public class KafkaChannel extends BasicChannelSemantics {
       }
     }
 
+    //从哪里开始读取数据
     if (!(ctx.containsKey((KAFKA_CONSUMER_PREFIX + ConsumerConfig.AUTO_OFFSET_RESET_CONFIG)))) {
       Boolean oldReadSmallest = ctx.getBoolean(READ_SMALLEST_OFFSET);
       String auto;
@@ -259,43 +277,47 @@ public class KafkaChannel extends BasicChannelSemantics {
     }
   }
 
-
+  //配置生产者属性
   private void setProducerProps(Context ctx, String bootStrapServers) {
-    producerProps.put(ProducerConfig.ACKS_CONFIG, DEFAULT_ACKS);
+    producerProps.put(ProducerConfig.ACKS_CONFIG, DEFAULT_ACKS);//设置生产者ack生产数据的回复模式
+    //如何序列化
     producerProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, DEFAULT_KEY_SERIALIZER);
     producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, DEFAULT_VALUE_SERIAIZER);
     //Defaults overridden based on config
-    producerProps.putAll(ctx.getSubProperties(KAFKA_PRODUCER_PREFIX));
-    producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootStrapServers);
+    producerProps.putAll(ctx.getSubProperties(KAFKA_PRODUCER_PREFIX));//获取生产者的配置信息
+    producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootStrapServers);//设置brokerList集合
   }
 
   protected Properties getProducerProps() {
     return producerProps;
   }
 
+  //配置消费者属性
   private void setConsumerProps(Context ctx, String bootStrapServers) {
+    //如何反序列化
     consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, DEFAULT_KEY_DESERIALIZER);
     consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, DEFAULT_VALUE_DESERIAIZER);
-    consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, DEFAULT_AUTO_OFFSET_RESET);
+    consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, DEFAULT_AUTO_OFFSET_RESET);//默认从哪里开始消费
     //Defaults overridden based on config
-    consumerProps.putAll(ctx.getSubProperties(KAFKA_CONSUMER_PREFIX));
+    consumerProps.putAll(ctx.getSubProperties(KAFKA_CONSUMER_PREFIX));//获取消费者的配置信息
     //These always take precedence over config
-    consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootStrapServers);
-    consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
-    consumerProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+    consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootStrapServers);//设置brokerList集合
+    consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);//设置消费者组
+    consumerProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);//不自动提交commit
   }
 
   protected Properties getConsumerProps() {
     return consumerProps;
   }
 
+  //创建一个消费者
   private synchronized ConsumerAndRecords createConsumerAndRecords() {
     try {
       KafkaConsumer<String, byte[]> consumer = new KafkaConsumer<String, byte[]>(consumerProps);
       ConsumerAndRecords car = new ConsumerAndRecords(consumer, channelUUID);
       logger.info("Created new consumer to connect to Kafka");
       car.consumer.subscribe(Arrays.asList(topic.get()),
-                             new ChannelRebalanceListener(rebalanceFlag));
+                             new ChannelRebalanceListener(rebalanceFlag));//注册一个监听器,说明该消费者监听一个信息
       car.offsets = new HashMap<TopicPartition, OffsetAndMetadata>();
       consumers.add(car);
       return car;
@@ -304,12 +326,14 @@ public class KafkaChannel extends BasicChannelSemantics {
     }
   }
 
+  //说明位置存储在zookeeper上了
+  //说明要加载zookeeper,获取每一个topic-partition的读取位置
   private void migrateOffsets() {
     ZkUtils zkUtils = ZkUtils.apply(zookeeperConnect, ZK_SESSION_TIMEOUT, ZK_CONNECTION_TIMEOUT,
-        JaasUtils.isZkSecurityEnabled());
+        JaasUtils.isZkSecurityEnabled());//连接zookeeper
     KafkaConsumer<String, byte[]> consumer = new KafkaConsumer<>(consumerProps);
     try {
-      Map<TopicPartition, OffsetAndMetadata> kafkaOffsets = getKafkaOffsets(consumer);
+      Map<TopicPartition, OffsetAndMetadata> kafkaOffsets = getKafkaOffsets(consumer);//获取每一个topic-partition的位置
       if (!kafkaOffsets.isEmpty()) {
         logger.info("Found Kafka offsets for topic " + topicStr +
             ". Will not migrate from zookeeper");
@@ -328,9 +352,9 @@ public class KafkaChannel extends BasicChannelSemantics {
       logger.debug("Offsets to commit: {}", zookeeperOffsets);
       consumer.commitSync(zookeeperOffsets);
       // Read the offsets to verify they were committed
-      Map<TopicPartition, OffsetAndMetadata> newKafkaOffsets = getKafkaOffsets(consumer);
+      Map<TopicPartition, OffsetAndMetadata> newKafkaOffsets = getKafkaOffsets(consumer);//提交后再读取kafka的位置信息
       logger.debug("Offsets committed: {}", newKafkaOffsets);
-      if (!newKafkaOffsets.keySet().containsAll(zookeeperOffsets.keySet())) {
+      if (!newKafkaOffsets.keySet().containsAll(zookeeperOffsets.keySet())) {//说明有一些topic-partition没有提交
         throw new FlumeException("Offsets could not be committed");
       }
     } finally {
@@ -339,12 +363,14 @@ public class KafkaChannel extends BasicChannelSemantics {
     }
   }
 
+  //消费者对象读取kafka在zookeeper上的信息,获取每一个topic-partition读取到哪个位置了
+    //参数是消费者客户端对象
   private Map<TopicPartition, OffsetAndMetadata> getKafkaOffsets(
       KafkaConsumer<String, byte[]> client) {
     Map<TopicPartition, OffsetAndMetadata> offsets = new HashMap<>();
-    List<PartitionInfo> partitions = client.partitionsFor(topicStr);
+    List<PartitionInfo> partitions = client.partitionsFor(topicStr);//读取topic的所有的partition元数据信息集合
     for (PartitionInfo partition : partitions) {
-      TopicPartition key = new TopicPartition(topicStr, partition.partition());
+      TopicPartition key = new TopicPartition(topicStr, partition.partition());//获取每一个topic-partition的信息
       OffsetAndMetadata offsetAndMetadata = client.committed(key);
       if (offsetAndMetadata != null) {
         offsets.put(key, offsetAndMetadata);
@@ -355,7 +381,7 @@ public class KafkaChannel extends BasicChannelSemantics {
 
   private Map<TopicPartition, OffsetAndMetadata> getZookeeperOffsets(ZkUtils client) {
     Map<TopicPartition, OffsetAndMetadata> offsets = new HashMap<>();
-    ZKGroupTopicDirs topicDirs = new ZKGroupTopicDirs(groupId, topicStr);
+    ZKGroupTopicDirs topicDirs = new ZKGroupTopicDirs(groupId, topicStr);//获取该topic被该组消费的情况
     List<String> partitions = asJavaListConverter(
         client.getChildrenParentMayNotExist(topicDirs.consumerOffsetDir())).asJava();
     for (String partition : partitions) {
@@ -370,6 +396,7 @@ public class KafkaChannel extends BasicChannelSemantics {
     return offsets;
   }
 
+  //关闭一个消费者
   private void decommissionConsumerAndRecords(ConsumerAndRecords c) {
     c.consumer.close();
   }
@@ -384,29 +411,31 @@ public class KafkaChannel extends BasicChannelSemantics {
     }
   }
 
+  //说明该事务是take的还是put操作的
   private enum TransactionType {
     PUT,
     TAKE,
     NONE
   }
 
+  //表示一个事务对象
   private class KafkaTransaction extends BasicTransactionSemantics {
 
     private TransactionType type = TransactionType.NONE;
     private Optional<ByteArrayOutputStream> tempOutStream = Optional
-            .absent();
+            .absent();//临时的输出文件流
     // For put transactions, serialize the events and hold them until the commit goes is requested.
     private Optional<LinkedList<ProducerRecord<String, byte[]>>> producerRecords =
-        Optional.absent();
+        Optional.absent();//生产者存储的集合---先缓存,当commit的时候在提交到kafka
     // For take transactions, deserialize and hold them till commit goes through
-    private Optional<LinkedList<Event>> events = Optional.absent();
+    private Optional<LinkedList<Event>> events = Optional.absent();//用于take过程中获取到的事件集合
     private Optional<SpecificDatumWriter<AvroFlumeEvent>> writer =
-            Optional.absent();
+            Optional.absent();//存储的value是avro对象格式的二进制字节数组
     private Optional<SpecificDatumReader<AvroFlumeEvent>> reader =
             Optional.absent();
     private Optional<LinkedList<Future<RecordMetadata>>> kafkaFutures =
-            Optional.absent();
-    private final String batchUUID = UUID.randomUUID().toString();
+            Optional.absent();//当commit的时候,记录每一个send发出去的每一条数据,然后用于future模式,确保都提交到kafka成功
+    private final String batchUUID = UUID.randomUUID().toString();//表示事务的唯一ID
 
     // Fine to use null for initial value, Avro will create new ones if this
     // is null
@@ -421,8 +450,8 @@ public class KafkaChannel extends BasicChannelSemantics {
 
     @Override
     protected void doPut(Event event) throws InterruptedException {
-      type = TransactionType.PUT;
-      if (!producerRecords.isPresent()) {
+      type = TransactionType.PUT;//说明是put操作
+      if (!producerRecords.isPresent()) {//生产者存储的集合必须存在
         producerRecords = Optional.of(new LinkedList<ProducerRecord<String, byte[]>>());
       }
       String key = event.getHeaders().get(KEY_HEADER);
@@ -458,9 +487,9 @@ public class KafkaChannel extends BasicChannelSemantics {
     @SuppressWarnings("unchecked")
     @Override
     protected Event doTake() throws InterruptedException {
-      type = TransactionType.TAKE;
+      type = TransactionType.TAKE;//说明是take操作的事务
       try {
-        if (!(consumerAndRecords.get().uuid.equals(channelUUID))) {
+        if (!(consumerAndRecords.get().uuid.equals(channelUUID))) {//说明渠道不相同.有问题了,因此要关闭该消费者
           logger.info("UUID mismatch, creating new consumer");
           decommissionConsumerAndRecords(consumerAndRecords.get());
           consumerAndRecords.remove();
@@ -473,11 +502,11 @@ public class KafkaChannel extends BasicChannelSemantics {
       }
       Event e;
       // Give the channel a chance to commit if there has been a rebalance
-      if (rebalanceFlag.get()) {
+      if (rebalanceFlag.get()) {//说明此时平衡了,不能在take数据了
         logger.debug("Returning null event after Consumer rebalance.");
         return null;
       }
-      if (!consumerAndRecords.get().failedEvents.isEmpty()) {
+      if (!consumerAndRecords.get().failedEvents.isEmpty()) {//从以前的数据中获取一个数据
         e = consumerAndRecords.get().failedEvents.removeFirst();
       } else {
 
@@ -487,12 +516,12 @@ public class KafkaChannel extends BasicChannelSemantics {
 
         try {
           long startTime = System.nanoTime();
-          if (!consumerAndRecords.get().recordIterator.hasNext()) {
+          if (!consumerAndRecords.get().recordIterator.hasNext()) {//继续获取下一批的事件
             consumerAndRecords.get().poll();
           }
-          if (consumerAndRecords.get().recordIterator.hasNext()) {
-            ConsumerRecord<String, byte[]> record = consumerAndRecords.get().recordIterator.next();
-            e = deserializeValue(record.value(), parseAsFlumeEvent);
+          if (consumerAndRecords.get().recordIterator.hasNext()) {//说明可以take到数据
+            ConsumerRecord<String, byte[]> record = consumerAndRecords.get().recordIterator.next();//获取一个元素
+            e = deserializeValue(record.value(), parseAsFlumeEvent);//反序列化该事件
             TopicPartition tp = new TopicPartition(record.topic(), record.partition());
             OffsetAndMetadata oam = new OffsetAndMetadata(record.offset() + 1, batchUUID);
             consumerAndRecords.get().offsets.put(tp, oam);
@@ -513,7 +542,7 @@ public class KafkaChannel extends BasicChannelSemantics {
 
             long endTime = System.nanoTime();
             counter.addToKafkaEventGetTimer((endTime - startTime) / (1000 * 1000));
-          } else {
+          } else {//说明kafka拿不到数据了
             return null;
           }
         } catch (Exception ex) {
@@ -533,22 +562,22 @@ public class KafkaChannel extends BasicChannelSemantics {
       if (type.equals(TransactionType.NONE)) {
         return;
       }
-      if (type.equals(TransactionType.PUT)) {
-        if (!kafkaFutures.isPresent()) {
+      if (type.equals(TransactionType.PUT)) {//提交put事务
+        if (!kafkaFutures.isPresent()) {//当commit的时候,记录每一个send发出去的每一条数据,然后用于future模式,确保都提交到kafka成功
           kafkaFutures = Optional.of(new LinkedList<Future<RecordMetadata>>());
         }
         try {
-          long batchSize = producerRecords.get().size();
+          long batchSize = producerRecords.get().size();//要提交给kafka的数据数量
           long startTime = System.nanoTime();
           int index = 0;
-          for (ProducerRecord<String, byte[]> record : producerRecords.get()) {
+          for (ProducerRecord<String, byte[]> record : producerRecords.get()) {//循环每一个要提交的数据
             index++;
-            kafkaFutures.get().add(producer.send(record, new ChannelCallback(index, startTime)));
+            kafkaFutures.get().add(producer.send(record, new ChannelCallback(index, startTime)));//发送数据后.成功后产生一个回调函数
           }
           //prevents linger.ms from being a problem
           producer.flush();
 
-          for (Future<RecordMetadata> future : kafkaFutures.get()) {
+          for (Future<RecordMetadata> future : kafkaFutures.get()) {//阻塞每一个提交的请求
             future.get();
           }
           long endTime = System.nanoTime();
@@ -561,10 +590,10 @@ public class KafkaChannel extends BasicChannelSemantics {
           throw new ChannelException("Commit failed as send to Kafka failed",
                   ex);
         }
-      } else {
+      } else {//对take事务提交
         if (consumerAndRecords.get().failedEvents.isEmpty() && eventTaken) {
           long startTime = System.nanoTime();
-          consumerAndRecords.get().commitOffsets();
+          consumerAndRecords.get().commitOffsets();//对take的offset数据信息 提交给zookeeper
           long endTime = System.nanoTime();
           counter.addToKafkaCommitTimer((endTime - startTime) / (1000 * 1000));
           consumerAndRecords.get().printCurrentAssignment();
@@ -579,20 +608,23 @@ public class KafkaChannel extends BasicChannelSemantics {
       if (type.equals(TransactionType.NONE)) {
         return;
       }
-      if (type.equals(TransactionType.PUT)) {
+      if (type.equals(TransactionType.PUT)) {//因为put都在内存,所以回滚就直接情况内存即可
         producerRecords.get().clear();
         kafkaFutures.get().clear();
-      } else {
+      } else {//回滚take操作
         counter.addToRollbackCounter(Long.valueOf(events.get().size()));
+        //因为take的数据都已经拿到了,就是因为一些意外导致要回滚,因此虽然不影响kafka,但是也不想再次从kafka读取数据,因此将其缓冲起来
         consumerAndRecords.get().failedEvents.addAll(events.get());
         events.get().clear();
       }
     }
 
+    //对事件进行序列化,然后将序列化的结果存储到kafka中
+    //参数parseAsFlumeEvent是false,则直接使用事件的data数据即可,如是true,则要解析事件
     private byte[] serializeValue(Event event, boolean parseAsFlumeEvent) throws IOException {
       byte[] bytes;
-      if (parseAsFlumeEvent) {
-        if (!tempOutStream.isPresent()) {
+      if (parseAsFlumeEvent) {//要解析事件
+        if (!tempOutStream.isPresent()) {//创建临时输出流
           tempOutStream = Optional.of(new ByteArrayOutputStream());
         }
         if (!writer.isPresent()) {
@@ -602,7 +634,7 @@ public class KafkaChannel extends BasicChannelSemantics {
         tempOutStream.get().reset();
         AvroFlumeEvent e = new AvroFlumeEvent(
                 toCharSeqMap(event.getHeaders()),
-                ByteBuffer.wrap(event.getBody()));
+                ByteBuffer.wrap(event.getBody()));//转换成avro事件对象
         encoder = EncoderFactory.get()
                 .directBinaryEncoder(tempOutStream.get(), encoder);
         writer.get().write(e, encoder);
@@ -614,6 +646,7 @@ public class KafkaChannel extends BasicChannelSemantics {
       return bytes;
     }
 
+     //反序列化kafka的数据内容
     private Event deserializeValue(byte[] value, boolean parseAsFlumeEvent) throws IOException {
       Event e;
       if (parseAsFlumeEvent) {
@@ -659,13 +692,13 @@ public class KafkaChannel extends BasicChannelSemantics {
 
   /* Object to store our consumer */
   private class ConsumerAndRecords {
-    final KafkaConsumer<String, byte[]> consumer;
-    final String uuid;
-    final LinkedList<Event> failedEvents = new LinkedList<Event>();
+    final KafkaConsumer<String, byte[]> consumer;//kafka消费者客户端
+    final String uuid;//该消费者属于哪个渠道
+    final LinkedList<Event> failedEvents = new LinkedList<Event>();////因为take的数据都已经拿到了,就是因为一些意外导致要回滚,因此虽然不影响kafka,但是也不想再次从kafka读取数据,因此将其缓冲起来
 
-    ConsumerRecords<String, byte[]> records;
-    Iterator<ConsumerRecord<String, byte[]>> recordIterator;
-    Map<TopicPartition, OffsetAndMetadata> offsets;
+    ConsumerRecords<String, byte[]> records;//消费的记录集合
+    Iterator<ConsumerRecord<String, byte[]>> recordIterator;//消费的记录集合迭代器
+    Map<TopicPartition, OffsetAndMetadata> offsets;//该消费者消费的内容--先还存在内存中
 
     ConsumerAndRecords(KafkaConsumer<String, byte[]> consumer, String uuid) {
       this.consumer = consumer;
@@ -675,14 +708,14 @@ public class KafkaChannel extends BasicChannelSemantics {
     }
 
     void poll() {
-      this.records = consumer.poll(pollTimeout);
+      this.records = consumer.poll(pollTimeout);//继续获取下一批的事件
       this.recordIterator = records.iterator();
       logger.trace("polling");
     }
 
     void commitOffsets() {
       this.consumer.commitSync(offsets);
-    }
+    }//提交给kafka
 
     // This will reset the latest assigned partitions to the last committed offsets;
 
@@ -707,16 +740,18 @@ public class KafkaChannel extends BasicChannelSemantics {
 }
 
 // Throw exception if there is an error
+//生产者send每一条数据后,产生一个回调函数
 class ChannelCallback implements Callback {
   private static final Logger log = LoggerFactory.getLogger(ChannelCallback.class);
-  private int index;
-  private long startTime;
+  private int index;//该数据是该事务的第几个数据
+  private long startTime;//该事务的send的时候的时间
 
   public ChannelCallback(int index, long startTime) {
     this.index = index;
     this.startTime = startTime;
   }
 
+  //记录日志说明有异常了
   public void onCompletion(RecordMetadata metadata, Exception exception) {
     if (exception != null) {
       log.trace("Error sending message to Kafka due to " + exception.getMessage());
@@ -729,6 +764,7 @@ class ChannelCallback implements Callback {
   }
 }
 
+//渠道去监听topic的监听器
 class ChannelRebalanceListener implements ConsumerRebalanceListener {
   private static final Logger log = LoggerFactory.getLogger(ChannelRebalanceListener.class);
   private AtomicBoolean rebalanceFlag;

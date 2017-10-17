@@ -32,6 +32,7 @@ import org.apache.flume.source.AbstractSource;
 /**
  * Simple source used to allow direct access to the channel for the Embedded
  * Agent.
+ * 内嵌的代理,不需要处理任何事件，传入的本身就是事件，直接给channel即可
  */
 @InterfaceAudience.Private
 @InterfaceStability.Unstable
